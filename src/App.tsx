@@ -9,8 +9,7 @@ const App = () => {
   const [isGuest, setIsGuest] = useState(false);
 
   useEffect(() => {
-    console.log('Current URL:', window.location.href);
-    console.log('Is VK environment:', window.location.search.includes('vk_app_id'));
+    
     const initializeApp = async () => {
       try {
         initVK();
@@ -26,7 +25,7 @@ const App = () => {
       } finally {
         setLoading(false);
       }
-    }, []);
+    };
 
     initializeApp();
   }, []);
