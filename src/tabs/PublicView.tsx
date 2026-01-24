@@ -1,24 +1,68 @@
 import React, { useState, useEffect } from 'react';
 import { Div, Group, Cell, Spinner, Epic, Tabbar, TabbarItem, PanelHeader } from '@vkontakte/vkui';
 import { db } from '../firebase';
-import { collection, getDocs } from 'firebase/firestore';
-import ScheduleTab from './ScheduleTab';
-import StandingsTab from './StandingsTab';
-import TopScorersTab from './TopScorersTab';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 
-const PublicView = () => {
-  const [tournaments, setTournaments] = useState<any[]>([]);
+// Типы
+interface PublicViewProps {
+  user?: any;
+  teams?: Array<{ id: string; tournamentId: string; [key: string]: any }>;
+}
+
+interface Tournament {
+  id: string;
+  name: string;
+  adminVkId: number;
+  coAdmins?: number[];
+  type: string;
+  format: string;
+  startDate: any; // Firestore Timestamp
+  logoUrl?: string;
+}
+
+const PublicView = ({ user, teams }: PublicViewProps) => {
+  const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [selectedTournament, setSelectedTournament] = useState<string | null>(null);
   const [activeStory, setActiveStory] = useState<'schedule' | 'standings' | 'scorers'>('schedule');
   const [loading, setLoading] = useState(true);
 
-  // Загрузка списка турниров
+  // Загрузка турниров
   useEffect(() => {
     const loadTournaments = async () => {
       try {
-        const snapshot = await getDocs(collection(db, 'tournaments'));
-        const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        list.sort((a, b) => (b.startDate?.toDate?.() || 0) - (a.startDate?.toDate?.() || 0));
+        let snapshot;
+        
+        // Если пользователь — капитан, показываем только его турниры
+        if (teams && teams.length > 0) {
+          const tournamentIds = Array.from(new Set(teams.map(t => t.tournamentId)));
+          const q = query(collection(db, 'tournaments'), where('__name__', 'in', tournamentIds));
+          snapshot = await getDocs(q);
+        } else {
+          // Иначе — все турниры
+          snapshot = await getDocs(collection(db, 'tournaments'));
+        }
+
+        const list: Tournament[] = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            name: data.name || 'Без названия',
+            adminVkId: data.adminVkId || 0,
+            coAdmins: data.coAdmins || [],
+            type: data.type || 'league',
+            format: data.format || 'football11',
+            startDate: data.startDate,
+            logoUrl: data.logoUrl
+          };
+        });
+
+        // Сортировка по дате (новые сверху)
+        list.sort((a, b) => {
+          const dateA = a.startDate?.toDate?.() || new Date(0);
+          const dateB = b.startDate?.toDate?.() || new Date(0);
+          return dateB.getTime() - dateA.getTime();
+        });
+        
         setTournaments(list);
         
         if (list.length > 0 && !selectedTournament) {
@@ -31,7 +75,7 @@ const PublicView = () => {
       }
     };
     loadTournaments();
-  }, []);
+  }, [teams]);
 
   if (loading) {
     return (
@@ -94,9 +138,9 @@ const PublicView = () => {
             </Tabbar>
           }
         >
-          <ScheduleTab id="schedule" tournamentId={tournament.id} />
-          <StandingsTab id="standings" tournamentId={tournament.id} />
-          <TopScorersTab id="scorers" tournamentId={tournament.id} />
+          <div id="schedule">Матчи (заглушка)</div>
+          <div id="standings">Таблица (заглушка)</div>
+          <div id="scorers">Бомбардиры (заглушка)</div>
         </Epic>
       )}
     </>

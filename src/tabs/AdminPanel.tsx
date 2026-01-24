@@ -10,31 +10,52 @@ import {
   Snackbar,
   Group,
   Cell,
-  Caption
+  Caption,
+  PanelHeader
 } from '@vkontakte/vkui';
-import { addDoc, collection, query, where, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import { 
+  collection, 
+  query, 
+  where, 
+  getDocs, 
+  deleteDoc, 
+  doc, 
+  updateDoc,
+  addDoc
+} from 'firebase/firestore';
 import LogoUrlInput from '../components/LogoUrlInput';
 
 interface Tournament {
   id: string;
   name: string;
   adminVkId: number;
-  type: 'cup' | 'league';
+  coAdmins?: number[];
+  type: 'league' | 'cup';
   format: string;
-  startDate: Date;
+  startDate: any;
   logoUrl?: string;
 }
 
-const AdminPanel = ({ user }: { user: { id: number; first_name: string; last_name: string } }) => {
-  const [activeTab, setActiveTab] = useState<'list' | 'create' | 'logo'>('list');
+interface Team {
+  id: string;
+  name: string;
+  tournamentId: string;
+  captainVkId: number;
+  logoUrl?: string;
+}
+
+const AdminPanel = ({ user }: { user: any }) => {
+  const [activeTab, setActiveTab] = useState<'list' | 'create' | 'logo' | 'teams'>('list');
   const [name, setName] = useState('');
   const [format, setFormat] = useState('football11');
   const [type, setType] = useState<'league' | 'cup'>('league');
   const [startDate, setStartDate] = useState('');
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
-  const [selectedTournamentId, setSelectedTournamentId] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
+  const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(null);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [teamName, setTeamName] = useState('');
+  const [captainVkId, setCaptainVkId] = useState('');
   const [snackbar, setSnackbar] = useState<string | null>(null);
 
   // Загрузка списка турниров
@@ -45,31 +66,49 @@ const AdminPanel = ({ user }: { user: { id: number; first_name: string; last_nam
       const list: Tournament[] = [];
       snapshot.docs.forEach(doc => {
         const data = doc.data();
-        let startDateVal: Date;
-        if (data.startDate?.toDate) {
-          startDateVal = data.startDate.toDate();
-        } else if (data.startDate instanceof Date) {
-          startDateVal = data.startDate;
-        } else {
-          startDateVal = new Date();
-        }
-        
         list.push({
           id: doc.id,
           name: data.name || 'Без названия',
           adminVkId: data.adminVkId || 0,
+          coAdmins: data.coAdmins || [],
           type: data.type || 'league',
           format: data.format || 'football11',
-          startDate: startDateVal,
+          startDate: data.startDate,
           logoUrl: data.logoUrl
         });
       });
-      
-      list.sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
+      list.sort((a, b) => (b.startDate?.toDate?.() || 0) - (a.startDate?.toDate?.() || 0));
       setTournaments(list);
+      
+      if (list.length > 0 && !selectedTournament) {
+        setSelectedTournament(list[0]);
+        loadTeams(list[0].id);
+      }
     } catch (err) {
       console.error('Ошибка загрузки турниров:', err);
       setSnackbar('Ошибка загрузки списка');
+    }
+  };
+
+  // Загрузка команд турнира
+  const loadTeams = async (tournamentId: string) => {
+    try {
+      const q = query(collection(db, 'teams'), where('tournamentId', '==', tournamentId));
+      const snapshot = await getDocs(q);
+      const list: Team[] = [];
+      snapshot.docs.forEach(doc => {
+        const data = doc.data();
+        list.push({
+          id: doc.id,
+          name: data.name || 'Без названия',
+          tournamentId: data.tournamentId,
+          captainVkId: data.captainVkId,
+          logoUrl: data.logoUrl
+        });
+      });
+      setTeams(list);
+    } catch (err) {
+      console.error('Ошибка загрузки команд:', err);
     }
   };
 
@@ -81,42 +120,36 @@ const AdminPanel = ({ user }: { user: { id: number; first_name: string; last_nam
     }
 
     try {
-      setUploading(true);
       const startDateObj = new Date(startDate);
       const docRef = await addDoc(collection(db, 'tournaments'), {
         name: name.trim(),
         adminVkId: user.id,
+        coAdmins: [user.id],
         type,
         format,
         startDate: startDateObj,
         createdAt: new Date()
       });
 
-      // Сброс формы
       setName('');
       setStartDate('');
       setActiveTab('list');
       setSnackbar('Турнир успешно создан!');
-      
-      // Обновление списка
       loadTournaments();
     } catch (err) {
       console.error('Ошибка создания турнира:', err);
       setSnackbar('Ошибка при создании турнира');
-    } finally {
-      setUploading(false);
     }
   };
 
   // Удаление турнира
   const handleDeleteTournament = async (tournamentId: string) => {
-    if (!window.confirm('Вы уверены? Все данные турнира будут удалены безвозвратно.')) {
-      return;
-    }
+    if (!window.confirm('Удалить турнир со всеми данными?')) return;
     
     try {
       await deleteDoc(doc(db, 'tournaments', tournamentId));
       setTournaments(tournaments.filter(t => t.id !== tournamentId));
+      setSelectedTournament(null);
       setSnackbar('Турнир удалён');
     } catch (err) {
       console.error('Ошибка удаления турнира:', err);
@@ -124,14 +157,41 @@ const AdminPanel = ({ user }: { user: { id: number; first_name: string; last_nam
     }
   };
 
-  // Загружаем турниры при смене вкладки
-  useEffect(() => {
-    if (activeTab === 'list') {
-      loadTournaments();
+  // Создание команды
+  const handleCreateTeam = async () => {
+    if (!teamName.trim() || !captainVkId.trim() || !selectedTournament) {
+      setSnackbar('Заполните все поля');
+      return;
     }
-  }, [activeTab, user.id]);
 
-  const selectedTournament = tournaments.find(t => t.id === selectedTournamentId);
+    const captainIdNum = parseInt(captainVkId.trim());
+    if (isNaN(captainIdNum)) {
+      setSnackbar('Неверный формат ID капитана');
+      return;
+    }
+
+    try {
+      await addDoc(collection(db, 'teams'), {
+        name: teamName.trim(),
+        tournamentId: selectedTournament.id,
+        captainVkId: captainIdNum,
+        createdAt: new Date()
+      });
+
+      setTeamName('');
+      setCaptainVkId('');
+      setSnackbar('Команда добавлена!');
+      loadTeams(selectedTournament.id);
+    } catch (err) {
+      console.error('Ошибка создания команды:', err);
+      setSnackbar('Ошибка при создании команды');
+    }
+  };
+
+  // Инициализация
+  useEffect(() => {
+    loadTournaments();
+  }, [user.id]);
 
   return (
     <Div>
@@ -142,15 +202,23 @@ const AdminPanel = ({ user }: { user: { id: number; first_name: string; last_nam
         <TabsItem selected={activeTab === 'create'} onClick={() => setActiveTab('create')}>
           Создать
         </TabsItem>
-        {selectedTournamentId && (
-          <TabsItem selected={activeTab === 'logo'} onClick={() => setActiveTab('logo')}>
-            Логотип
-          </TabsItem>
+        {selectedTournament && (
+          <>
+            <TabsItem selected={activeTab === 'logo'} onClick={() => setActiveTab('logo')}>
+              Логотип
+            </TabsItem>
+            <TabsItem selected={activeTab === 'teams'} onClick={() => {
+              setActiveTab('teams');
+              loadTeams(selectedTournament.id);
+            }}>
+              Команды
+            </TabsItem>
+          </>
         )}
       </Tabs>
 
       {activeTab === 'list' ? (
-        <Group>
+        <Group header={<PanelHeader>Ваши турниры</PanelHeader>}>
           {tournaments.length === 0 ? (
             <Div>У вас пока нет созданных турниров</Div>
           ) : (
@@ -163,7 +231,7 @@ const AdminPanel = ({ user }: { user: { id: number; first_name: string; last_nam
                 subtitle={
                   <div>
                     <Caption>{tournament.type === 'cup' ? 'Кубок' : 'Чемпионат'} • {tournament.format}</Caption>
-                    <Caption level="2">{tournament.startDate.toLocaleDateString('ru-RU')}</Caption>
+                    <Caption level="2">{tournament.startDate?.toDate?.().toLocaleDateString('ru-RU')}</Caption>
                   </div>
                 }
                 after={
@@ -175,7 +243,10 @@ const AdminPanel = ({ user }: { user: { id: number; first_name: string; last_nam
                     Удалить
                   </Button>
                 }
-                onClick={() => setSelectedTournamentId(tournament.id)}
+                onClick={() => {
+                  setSelectedTournament(tournament);
+                  loadTeams(tournament.id);
+                }}
               >
                 {tournament.name}
               </Cell>
@@ -218,22 +289,62 @@ const AdminPanel = ({ user }: { user: { id: number; first_name: string; last_nam
           <Button
             size="l"
             mode="primary"
-            loading={uploading}
             onClick={handleCreateTournament}
             style={{ marginTop: 16 }}
           >
             Создать турнир
           </Button>
         </FormLayout>
-      ) : (
-        selectedTournament && (
-          <LogoUrlInput
-            tournamentId={selectedTournament.id}
-            currentLogo={selectedTournament.logoUrl}
-            onLogoUpdated={loadTournaments}
-          />
-        )
-      )}
+      ) : activeTab === 'logo' && selectedTournament ? (
+        <LogoUrlInput
+          tournamentId={selectedTournament.id}
+          currentLogo={selectedTournament.logoUrl}
+          onLogoUpdated={loadTournaments}
+        />
+      ) : activeTab === 'teams' && selectedTournament ? (
+        <Div>
+          <Group header={<PanelHeader>Добавить команду</PanelHeader>}>
+            <FormLayout>
+              <Input
+                placeholder="Название команды"
+                value={teamName}
+                onChange={(e) => setTeamName(e.target.value)}
+              />
+              <Input
+                placeholder="VK ID капитана"
+                value={captainVkId}
+                onChange={(e) => setCaptainVkId(e.target.value)}
+              />
+              <Button
+                size="l"
+                mode="primary"
+                onClick={handleCreateTeam}
+                style={{ marginTop: 8 }}
+              >
+                Добавить команду
+              </Button>
+            </FormLayout>
+          </Group>
+
+          <Group header={<PanelHeader>Список команд</PanelHeader>}>
+            {teams.length === 0 ? (
+              <Div>Нет добавленных команд</Div>
+            ) : (
+              teams.map(team => (
+                <Cell
+                  key={team.id}
+                  before={team.logoUrl && (
+                    <img src={team.logoUrl} width="32" height="32" style={{ borderRadius: '4px', marginRight: '12px' }} />
+                  )}
+                  subtitle={`Капитан ID: ${team.captainVkId}`}
+                >
+                  {team.name}
+                </Cell>
+              ))
+            )}
+          </Group>
+        </Div>
+      ) : null}
 
       {snackbar && (
         <Snackbar

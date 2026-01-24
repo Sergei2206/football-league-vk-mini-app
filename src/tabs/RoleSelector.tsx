@@ -9,13 +9,22 @@ const RoleSelector = ({ onRoleSelected }: RoleSelectorProps) => {
   return (
     <Div>
       <Group header={<PanelHeader>Выберите роль</PanelHeader>}>
-        <Cell onClick={() => onRoleSelected('admin')} description="Управление турнирами">
+        <Cell 
+          onClick={() => onRoleSelected('admin')} 
+          subtitle="Управление турнирами"
+        >
           Администратор
         </Cell>
-        <Cell onClick={() => onRoleSelected('captain')} description="Управление своей командой">
+        <Cell 
+          onClick={() => onRoleSelected('captain')} 
+          subtitle="Управление своей командой"
+        >
           Капитан
         </Cell>
-        <Cell onClick={() => onRoleSelected('guest')} description="Только просмотр">
+        <Cell 
+          onClick={() => onRoleSelected('guest')} 
+          subtitle="Только просмотр"
+        >
           Гость
         </Cell>
       </Group>
