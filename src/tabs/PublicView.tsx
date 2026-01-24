@@ -3,7 +3,6 @@ import { Div, Group, Cell, Spinner, Epic, Tabbar, TabbarItem, PanelHeader } from
 import { db } from '../firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 
-// Типы
 interface PublicViewProps {
   user?: any;
   teams?: Array<{ id: string; tournamentId: string; [key: string]: any }>;
@@ -16,7 +15,7 @@ interface Tournament {
   coAdmins?: number[];
   type: string;
   format: string;
-  startDate: any; // Firestore Timestamp
+  startDate: any;
   logoUrl?: string;
 }
 
@@ -26,19 +25,16 @@ const PublicView = ({ user, teams }: PublicViewProps) => {
   const [activeStory, setActiveStory] = useState<'schedule' | 'standings' | 'scorers'>('schedule');
   const [loading, setLoading] = useState(true);
 
-  // Загрузка турниров
   useEffect(() => {
     const loadTournaments = async () => {
       try {
         let snapshot;
         
-        // Если пользователь — капитан, показываем только его турниры
         if (teams && teams.length > 0) {
           const tournamentIds = Array.from(new Set(teams.map(t => t.tournamentId)));
           const q = query(collection(db, 'tournaments'), where('__name__', 'in', tournamentIds));
           snapshot = await getDocs(q);
         } else {
-          // Иначе — все турниры
           snapshot = await getDocs(collection(db, 'tournaments'));
         }
 
@@ -56,7 +52,6 @@ const PublicView = ({ user, teams }: PublicViewProps) => {
           };
         });
 
-        // Сортировка по дате (новые сверху)
         list.sort((a, b) => {
           const dateA = a.startDate?.toDate?.() || new Date(0);
           const dateB = b.startDate?.toDate?.() || new Date(0);
@@ -75,7 +70,7 @@ const PublicView = ({ user, teams }: PublicViewProps) => {
       }
     };
     loadTournaments();
-  }, [teams]);
+  }, [teams, selectedTournament]);
 
   if (loading) {
     return (
@@ -98,7 +93,6 @@ const PublicView = ({ user, teams }: PublicViewProps) => {
 
   return (
     <>
-      {/* Выбор турнира */}
       <Group>
         {tournaments.map(t => (
           <Cell 
@@ -111,7 +105,6 @@ const PublicView = ({ user, teams }: PublicViewProps) => {
         ))}
       </Group>
 
-      {/* Контент турнира */}
       {tournament && (
         <Epic
           activeStory={activeStory}
@@ -138,9 +131,9 @@ const PublicView = ({ user, teams }: PublicViewProps) => {
             </Tabbar>
           }
         >
-          <div id="schedule">Матчи (заглушка)</div>
-          <div id="standings">Таблица (заглушка)</div>
-          <div id="scorers">Бомбардиры (заглушка)</div>
+          <div id="schedule" style={{ padding: 16 }}>Матчи (заглушка)</div>
+          <div id="standings" style={{ padding: 16 }}>Таблица (заглушка)</div>
+          <div id="scorers" style={{ padding: 16 }}>Бомбардиры (заглушка)</div>
         </Epic>
       )}
     </>

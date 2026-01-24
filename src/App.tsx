@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Root, View, Panel, Div, Spinner, Snackbar, Alert } from '@vkontakte/vkui';
+import { Root, View, Panel, Div, Spinner, Snackbar } from '@vkontakte/vkui';
 import vkBridge from '@vkontakte/vk-bridge';
 
 // Утилиты
-import { isAppAdmin, isSuperAdmin } from './utils/appAdmins';
+import { isAppAdmin } from './utils/appAdmins';
 
 // Компоненты
 import RoleSelector from './tabs/RoleSelector';
@@ -34,6 +34,7 @@ interface Team {
 }
 
 const SUPER_ADMIN_ID = 91747933;
+const isSuperAdmin = (userId: number) => userId === SUPER_ADMIN_ID;
 
 const App = () => {
   const [user, setUser] = useState<any>(null);
@@ -45,27 +46,20 @@ const App = () => {
   const [snackbar, setSnackbar] = useState<string | null>(null);
   const [isVKEnvironment, setIsVKEnvironment] = useState(false);
 
-  // Инициализация VK Bridge
   useEffect(() => {
     const initApp = async () => {
       try {
-        // Проверяем, поддерживает ли среда VK Bridge
         if (typeof window !== 'undefined' && vkBridge) {
           setIsVKEnvironment(true);
           
-          // Инициализируем VK Bridge
           if (vkBridge.supports('VKWebAppInit')) {
             await vkBridge.send('VKWebAppInit');
           }
 
-          // Получаем данные пользователя
           const userData = await vkBridge.send('VKWebAppGetUserInfo');
           setUser(userData);
-          
-          // Определяем роль
           await determineUserRole(userData.id);
         } else {
-          // Не во ВКонтакте
           setIsVKEnvironment(false);
         }
       } catch (err) {
@@ -79,23 +73,33 @@ const App = () => {
     initApp();
   }, []);
 
-  // Определение роли пользователя
   const determineUserRole = async (userId: number) => {
     try {
-      // Главный админ
-      if (userId === SUPER_ADMIN_ID) {
+      if (isSuperAdmin(userId)) {
         setRole('superadmin');
         return;
       }
 
-      // Админ приложения
       const isAdmin = await isAppAdmin(userId);
       if (isAdmin) {
         setRole('admin');
+        
+        // Загрузка турниров админа
+        const { db } = await import('./firebase');
+        const { collection, query, where, getDocs } = await import('firebase/firestore');
+        
+        const q = query(collection(db, 'tournaments'), where('adminVkId', '==', userId));
+        const snapshot = await getDocs(q);
+        const userTournaments: Tournament[] = [];
+        snapshot.docs.forEach(doc => {
+          userTournaments.push({ id: doc.id, ...doc.data() } as Tournament);
+        });
+        setTournaments(userTournaments);
+        
         return;
       }
 
-      // Капитан команды
+      // Проверка капитанов
       const { db } = await import('./firebase');
       const { collection, query, where, getDocs } = await import('firebase/firestore');
       
@@ -117,12 +121,10 @@ const App = () => {
     }
   };
 
-  // Обработка выбора роли
   const handleRoleSelected = (newRole: UserRole) => {
     setSelectedRole(newRole);
   };
 
-  // Заглушка для внешних пользователей
   if (!isVKEnvironment && !loading) {
     return (
       <Div style={{ padding: 20, textAlign: 'center' }}>
@@ -149,7 +151,6 @@ const App = () => {
     );
   }
 
-  // Выбор роли при нескольких возможностях
   if ((role === 'admin' || role === 'superadmin') && teams.length > 0 && !selectedRole) {
     return <RoleSelector onRoleSelected={handleRoleSelected} />;
   }
