@@ -3,14 +3,16 @@ import { Root, View, Panel, Div, Spinner, Snackbar } from '@vkontakte/vkui';
 import { initVK, getUserInfo } from './vk';
 import { db } from './firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
+import { isAppAdmin, isSuperAdmin } from './utils/appAdmins';
 
 // Компоненты
 import RoleSelector from './tabs/RoleSelector';
 import AdminDashboard from './tabs/AdminDashboard';
+import SuperAdminPanel from './tabs/SuperAdminPanel';
 import PublicView from './tabs/PublicView';
 
 // Типы
-type UserRole = 'guest' | 'captain' | 'admin';
+type UserRole = 'guest' | 'captain' | 'admin' | 'superadmin';
 
 interface Tournament {
   id: string;
@@ -19,7 +21,7 @@ interface Tournament {
   coAdmins?: number[];
   type: 'league' | 'cup';
   format: string;
-  startDate: any; // Firestore Timestamp
+  startDate: any;
   logoUrl?: string;
 }
 
@@ -31,6 +33,8 @@ interface Team {
   logoUrl?: string;
 }
 
+const SUPER_ADMIN_ID = 91747933;
+
 const App = () => {
   const [user, setUser] = useState<any>(null);
   const [role, setRole] = useState<UserRole>('guest');
@@ -40,43 +44,36 @@ const App = () => {
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [snackbar, setSnackbar] = useState<string | null>(null);
 
-  // Определяем роли пользователя
-  const loadUserRoles = async (userId: number) => {
+  // Загрузка данных пользователя
+  const loadUserData = async (userId: number) => {
     try {
-      // Загружаем турниры, где пользователь — админ или со-админ
-      const q1 = query(collection(db, 'tournaments'), where('adminVkId', '==', userId));
-      const q2 = query(collection(db, 'tournaments'), where('coAdmins', 'array-contains', userId));
-      
-      const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
-      
-      const userTournaments: Tournament[] = [];
-      snap1.docs.forEach(doc => userTournaments.push({ id: doc.id, ...doc.data() } as Tournament));
-      snap2.docs.forEach(doc => {
-        const data = doc.data();
-        if (data.adminVkId !== userId) {
-          userTournaments.push({ id: doc.id, ...data } as Tournament);
-        }
-      });
+      // Проверяем, главный ли админ
+      if (isSuperAdmin(userId)) {
+        setRole('superadmin');
+        return;
+      }
 
-      // Загружаем команды, где пользователь — капитан
+      // Проверяем, админ ли приложения
+      const isAdmin = await isAppAdmin(userId);
+      if (isAdmin) {
+        setRole('admin');
+        return;
+      }
+
+      // Проверяем, капитан ли
       const teamQ = query(collection(db, 'teams'), where('captainVkId', '==', userId));
       const teamSnap = await getDocs(teamQ);
       const userTeams: Team[] = [];
       teamSnap.docs.forEach(doc => userTeams.push({ id: doc.id, ...doc.data() } as Team));
 
-      // Определяем основную роль
-      if (userTournaments.length > 0) {
-        setTournaments(userTournaments);
-        setTeams(userTeams);
-        setRole('admin');
-      } else if (userTeams.length > 0) {
+      if (userTeams.length > 0) {
         setTeams(userTeams);
         setRole('captain');
       } else {
         setRole('guest');
       }
     } catch (err) {
-      console.error('Ошибка загрузки ролей:', err);
+      console.error('Ошибка загрузки данных:', err);
       setRole('guest');
       setSnackbar('Не удалось загрузить данные');
     }
@@ -89,7 +86,7 @@ const App = () => {
         initVK();
         const userData = await getUserInfo();
         setUser(userData);
-        await loadUserRoles(userData.id);
+        await loadUserData(userData.id);
       } catch (err) {
         console.warn('Режим гостя:', err);
         setRole('guest');
@@ -120,35 +117,37 @@ const App = () => {
   }
 
   // Если пользователь имеет несколько ролей — показываем выбор
-  if (role === 'admin' && teams.length > 0 && !selectedRole) {
+  if ((role === 'admin' || role === 'superadmin') && teams.length > 0 && !selectedRole) {
     return <RoleSelector onRoleSelected={handleRoleSelected} />;
   }
 
   const effectiveRole = selectedRole || role;
 
   return (
-  <Root activeView="main">
-    <>
-      <View id="main" activePanel="main">
-        <Panel id="main">
-          {effectiveRole === 'admin' ? (
-            <AdminDashboard user={user} tournaments={tournaments} />
-          ) : effectiveRole === 'captain' ? (
-            <PublicView user={user} teams={teams} />
-          ) : (
-            <PublicView />
-          )}
-        </Panel>
-      </View>
+    <Root activeView="main">
+      <>
+        <View id="main" activePanel="main">
+          <Panel id="main">
+            {effectiveRole === 'superadmin' ? (
+              <SuperAdminPanel user={user} />
+            ) : effectiveRole === 'admin' ? (
+              <AdminDashboard user={user} tournaments={tournaments} />
+            ) : effectiveRole === 'captain' ? (
+              <PublicView user={user} teams={teams} />
+            ) : (
+              <PublicView />
+            )}
+          </Panel>
+        </View>
 
-      {snackbar && (
-        <Snackbar duration={3000} onClose={() => setSnackbar(null)}>
-          {snackbar}
-        </Snackbar>
-      )}
-    </>
-  </Root>
-);
+        {snackbar && (
+          <Snackbar duration={3000} onClose={() => setSnackbar(null)}>
+            {snackbar}
+          </Snackbar>
+        )}
+      </>
+    </Root>
+  );
 };
 
 export default App;
