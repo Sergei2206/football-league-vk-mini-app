@@ -1,33 +1,37 @@
 import React, { useEffect, useState } from 'react';
-import { Root, View, Panel, PanelHeader, Spinner, Div } from '@vkontakte/vkui';
+import { Root, View, Panel, Div, Spinner } from '@vkontakte/vkui';
 import { initVK, getUserInfo } from './vk';
-import PublicTournamentView from './tabs/PublicTournamentView';
+import RoleSelector from './tabs/RoleSelector';
+import AdminDashboard from './tabs/AdminDashboard';
+import PublicView from './tabs/PublicView';
+
+type UserRole = 'guest' | 'captain' | 'admin';
+interface UserContext {
+  role: UserRole;
+  tournaments?: any[];
+  teams?: any[];
+}
 
 const App = () => {
   const [user, setUser] = useState<any>(null);
+  const [context, setContext] = useState<UserContext>({ role: 'guest' });
   const [loading, setLoading] = useState(true);
-  const [isGuest, setIsGuest] = useState(false);
 
   useEffect(() => {
-    
-    const initializeApp = async () => {
+    const init = async () => {
       try {
         initVK();
         const userData = await getUserInfo();
-        
-        // Проверяем, гость ли пользователь
-        const isGuestUser = userData.is_guest || !userData.id;
-        setIsGuest(isGuestUser);
         setUser(userData);
-      } catch (error) {
-        console.warn('Failed to get user info, using guest mode:', error);
-        setIsGuest(true);
+        const userContext = await determineUserRoles(userData.id);
+        setContext(userContext);
+      } catch (err) {
+        setContext({ role: 'guest' });
       } finally {
         setLoading(false);
       }
     };
-
-    initializeApp();
+    init();
   }, []);
 
   if (loading) {
@@ -35,8 +39,7 @@ const App = () => {
       <Root activeView="loading">
         <View id="loading" activePanel="loading">
           <Panel id="loading">
-            <PanelHeader>Загрузка...</PanelHeader>
-            <Div style={{ display: 'flex', justifyContent: 'center', padding: '20px' }}>
+            <Div style={{ textAlign: 'center', padding: '20px' }}>
               <Spinner size="medium" />
             </Div>
           </Panel>
@@ -45,15 +48,24 @@ const App = () => {
     );
   }
 
-  return (
-    <Root activeView="main">
-      <View id="main" activePanel="main">
-        <Panel id="main">
-          <PublicTournamentView user={isGuest ? null : user} />
-        </Panel>
-      </View>
-    </Root>
-  );
+  if (context.role === 'admin' && context.teams && context.teams.length > 0) {
+    return <RoleSelector user={user} context={context} />;
+  }
+
+  switch (context.role) {
+    case 'admin':
+      return <AdminDashboard user={user} tournaments={context.tournaments || []} />;
+    case 'captain':
+      return <PublicView user={user} />; // или CaptainPanel
+    default:
+      return <PublicView />;
+  }
+};
+
+// Имитация определения ролей (реализуй через Firebase)
+const determineUserRoles = async (userId: number) => {
+  // Здесь должен быть запрос к Firestore
+  return { role: 'admin' as const, tournaments: [], teams: [] };
 };
 
 export default App;
