@@ -127,7 +127,8 @@ const App = () => {
   const effectiveRole = selectedRole || role;
 
   return (
-    <Root activeView="main">
+  <Root activeView="main">
+    <>
       <View id="main" activePanel="main">
         <Panel id="main">
           {effectiveRole === 'admin' ? (
@@ -145,8 +146,9 @@ const App = () => {
           {snackbar}
         </Snackbar>
       )}
-    </Root>
-  );
+    </>
+  </Root>
+);
 };
 
 export default App;
