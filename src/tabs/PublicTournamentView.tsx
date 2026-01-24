@@ -10,11 +10,7 @@ import {
   Spinner
 } from '@vkontakte/vkui';
 
-// Только подтверждённые иконки
-import {
-  Icon12Fire,
-  Icon12Lock
-} from '@vkontakte/icons';
+
 
 import ScheduleTab from './ScheduleTab';
 import StandingsTab from './StandingsTab';
@@ -151,17 +147,15 @@ const PublicTournamentView = ({ user }: { user?: any }) => {
             onClick={() => setActiveStory('topScorers')}
             selected={activeStory === 'topScorers'}
             text="Бомбардиры"
-          >
-            <Icon12Fire />
-          </TabbarItem>
+          />
+         
 
           <TabbarItem
             onClick={() => setActiveStory('topKeepers')}
             selected={activeStory === 'topKeepers'}
             text="Вратари"
-          >
-            <Icon12Lock />
-          </TabbarItem>
+          />
+            
         </Tabbar>
       }
     >
