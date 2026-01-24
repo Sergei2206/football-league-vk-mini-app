@@ -5,7 +5,6 @@
   "dependencies": {
     "@vkontakte/icons": "^1.213.0",
     "@vkontakte/vk-bridge": "^2.7.0",
-    "@vkontakte/vk-mini-apps-router": "^1.8.4",
     "@vkontakte/vkui": "^5.10.0",
     "firebase": "^10.0.0",
     "react": "^18.2.0",

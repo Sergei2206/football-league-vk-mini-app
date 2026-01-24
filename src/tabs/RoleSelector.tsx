@@ -1,43 +1,21 @@
 import React from 'react';
 import { Div, Group, Cell, PanelHeader } from '@vkontakte/vkui';
-import { useNavigate } from '@vkontakte/vk-mini-apps-router';
 
 interface RoleSelectorProps {
-  user: any;
-  context: {
-    tournaments?: any[];
-    teams?: any[];
-  };
+  onRoleSelected: (role: 'admin' | 'captain' | 'guest') => void;
 }
 
-const RoleSelector = ({ user, context }: RoleSelectorProps) => {
-  const navigate = useNavigate();
-
+const RoleSelector = ({ onRoleSelected }: RoleSelectorProps) => {
   return (
     <Div>
       <Group header={<PanelHeader>Выберите роль</PanelHeader>}>
-        {context.tournaments && context.tournaments.length > 0 && (
-          <Cell
-            onClick={() => navigate('/admin')}
-            description="Управление турнирами"
-          >
-            Администратор
-          </Cell>
-        )}
-
-        {context.teams && context.teams.length > 0 && (
-          <Cell
-            onClick={() => navigate('/captain')}
-            description={`Команды: ${context.teams.length}`}
-          >
-            Капитан
-          </Cell>
-        )}
-
-        <Cell
-          onClick={() => navigate('/public')}
-          description="Только просмотр"
-        >
+        <Cell onClick={() => onRoleSelected('admin')} description="Управление турнирами">
+          Администратор
+        </Cell>
+        <Cell onClick={() => onRoleSelected('captain')} description="Управление своей командой">
+          Капитан
+        </Cell>
+        <Cell onClick={() => onRoleSelected('guest')} description="Только просмотр">
           Гость
         </Cell>
       </Group>
