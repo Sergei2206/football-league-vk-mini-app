@@ -1,31 +1,34 @@
-<!-- public/index.html -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#000000" />
   <title>Футбольная Алмазная Лига</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    .container { max-width: 600px; margin: 40px auto; padding: 0 20px; text-align: center; }
+    .btn { display: inline-block; margin-top: 16px; padding: 10px 20px; background: #0077ff; color: white; text-decoration: none; border-radius: 6px; }
+  </style>
 </head>
 <body>
   <div id="root">
-    <!-- Заглушка для гостей -->
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 20px; text-align: center;">
-      <h2>Футбольная Алмазная Лига</h2>
-      <p>Откройте приложение во ВКонтакте:</p>
-      <a href="https://vk.com/app54429454" style="color: #0077ff; text-decoration: none;">Перейти в приложение</a>
+    <div class="container">
+      <h2>⚽ Футбольная Алмазная Лига</h2>
+      <p>Приложение доступно только во ВКонтакте.</p>
+      <a href="https://vk.com/app54429454" class="btn">Открыть в VK</a>
     </div>
   </div>
 
-  <!-- Проверка окружения -->
   <script>
     // Проверяем, что приложение запущено во ВКонтакте
     const isVK = window.location.search.includes('vk_app_id') || 
-                 window.location.href.includes('vk.com/app');
-    
+                 window.location.hostname === 'vk.com';
+
     if (isVK) {
-      // Загружаем основной JS только если во ВКонтакте
+      // Только тогда загружаем React-приложение
       const script = document.createElement('script');
-      script.src = './static/js/main.js';
+      script.src = '/static/js/main.js';
       script.defer = true;
       document.head.appendChild(script);
     }
