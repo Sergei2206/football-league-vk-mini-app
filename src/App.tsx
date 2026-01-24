@@ -1,26 +1,60 @@
-import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import React, { useEffect, useState } from 'react';
+import { Root, View, Panel, PanelHeader, Spinner, Div } from '@vkontakte/vkui';
+import { initVK, getUserInfo } from './vk';
+import PublicTournamentView from './tabs/PublicTournamentView';
 
-function App() {
+const App = () => {
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [isGuest, setIsGuest] = useState(false);
+
+  useEffect(() => {
+    console.log('Current URL:', window.location.href);
+    console.log('Is VK environment:', window.location.search.includes('vk_app_id'));
+    const initializeApp = async () => {
+      try {
+        initVK();
+        const userData = await getUserInfo();
+        
+        // Проверяем, гость ли пользователь
+        const isGuestUser = userData.is_guest || !userData.id;
+        setIsGuest(isGuestUser);
+        setUser(userData);
+      } catch (error) {
+        console.warn('Failed to get user info, using guest mode:', error);
+        setIsGuest(true);
+      } finally {
+        setLoading(false);
+      }
+    }, []);
+
+    initializeApp();
+  }, []);
+
+  if (loading) {
+    return (
+      <Root activeView="loading">
+        <View id="loading" activePanel="loading">
+          <Panel id="loading">
+            <PanelHeader>Загрузка...</PanelHeader>
+            <Div style={{ display: 'flex', justifyContent: 'center', padding: '20px' }}>
+              <Spinner size="medium" />
+            </Div>
+          </Panel>
+        </View>
+      </Root>
+    );
+  }
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <Root activeView="main">
+      <View id="main" activePanel="main">
+        <Panel id="main">
+          <PublicTournamentView user={isGuest ? null : user} />
+        </Panel>
+      </View>
+    </Root>
   );
-}
+};
 
 export default App;
