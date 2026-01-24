@@ -1,44 +1,25 @@
 import vkBridge from '@vkontakte/vk-bridge';
 
-const isVKEnvironment = () => {
-  return typeof window !== 'undefined' && 
-         (window.location.search.includes('vk_app_id') || 
-          window.location.hostname === 'vk.com');
-};
-
 export const initVK = () => {
-  if (isVKEnvironment()) {
-    console.log('VK Bridge initializing...');
-    try {
-      if (vkBridge.supports('VKWebAppInit')) {
-        vkBridge.send('VKWebAppInit');
-        console.log('VKWebAppInit sent');
-      }
-    } catch (error) {
-      console.warn('VK Bridge init failed:', error);
+  console.log('Попытка инициализации VK Bridge');
+  try {
+    if (vkBridge.supports('VKWebAppInit')) {
+      vkBridge.send('VKWebAppInit');
+      console.log('VKWebAppInit успешно отправлен');
     }
-  } else {
-    console.log('Not in VK environment');
+  } catch (error) {
+    console.error('Ошибка инициализации VK Bridge:', error);
   }
 };
 
-export const getUserInfo = (): Promise<any> => {
-  return new Promise((resolve, reject) => {
-    if (!isVKEnvironment()) {
-      resolve({ id: 0, first_name: 'Гость', last_name: '', is_guest: true });
-      return;
-    }
-
-    try {
-      console.log('Requesting user info...');
-      vkBridge.send('VKWebAppGetUserInfo')
-        .then((userData) => {
-          console.log('User data received:', userData);
-          resolve(userData);
-        })
-        .catch(reject);
-    } catch (error) {
-      reject(error);
-    }
-  });
+export const getUserInfo = async () => {
+  console.log('Запрос информации о пользователе');
+  try {
+    const userData = await vkBridge.send('VKWebAppGetUserInfo');
+    console.log('Данные пользователя получены:', userData);
+    return userData;
+  } catch (error) {
+    console.error('Ошибка получения данных пользователя:', error);
+    throw error;
+  }
 };

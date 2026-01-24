@@ -5,60 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#000000" />
   <title>Футбольная Алмазная Лига</title>
-  <style>
-    body {
-      margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #f7f8fa;
-    }
-    .container {
-      max-width: 600px;
-      margin: 40px auto;
-      padding: 0 20px;
-      text-align: center;
-    }
-    .logo {
-      font-size: 2.5rem;
-      margin-bottom: 16px;
-      color: #0077ff;
-    }
-    .btn {
-      display: inline-block;
-      margin-top: 16px;
-      padding: 12px 24px;
-      background: #0077ff;
-      color: white;
-      text-decoration: none;
-      border-radius: 8px;
-      font-weight: 500;
-    }
-    .btn:hover {
-      opacity: 0.9;
-    }
-  </style>
 </head>
 <body>
-  <div id="root">
-    <div class="container">
-      <div class="logo">⚽</div>
-      <h2>Футбольная Алмазная Лига</h2>
-      <p>Приложение доступно только во ВКонтакте</p>
-      <a href="https://vk.com/app54429454" class="btn">Открыть в VK</a>
-    </div>
-  </div>
-
-  <script>
-    // Определяем, запущено ли приложение во ВКонтакте
-    const isVK = window.location.search.includes('vk_app_id') || 
-                 window.location.hostname === 'vk.com';
-
-    if (isVK) {
-      // Загружаем React-приложение только во ВКонтакте
-      const script = document.createElement('script');
-      script.src = '/static/js/main.js';
-      script.defer = true;
-      document.head.appendChild(script);
-    }
-  </script>
+  <div id="root"></div>
 </body>
 </html>

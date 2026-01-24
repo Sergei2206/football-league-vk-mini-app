@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Root, View, Panel, Div, Spinner, Snackbar } from '@vkontakte/vkui';
-import { initVK, getUserInfo } from './vk';
-import { db } from './firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { Root, View, Panel, Div, Spinner, Snackbar, Alert } from '@vkontakte/vkui';
+import vkBridge from '@vkontakte/vk-bridge';
+
+// Утилиты
 import { isAppAdmin, isSuperAdmin } from './utils/appAdmins';
 
 // Компоненты
@@ -43,24 +43,62 @@ const App = () => {
   const [loading, setLoading] = useState(true);
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [snackbar, setSnackbar] = useState<string | null>(null);
+  const [isVKEnvironment, setIsVKEnvironment] = useState(false);
 
-  // Загрузка данных пользователя
-  const loadUserData = async (userId: number) => {
+  // Инициализация VK Bridge
+  useEffect(() => {
+    const initApp = async () => {
+      try {
+        // Проверяем, поддерживает ли среда VK Bridge
+        if (typeof window !== 'undefined' && vkBridge) {
+          setIsVKEnvironment(true);
+          
+          // Инициализируем VK Bridge
+          if (vkBridge.supports('VKWebAppInit')) {
+            await vkBridge.send('VKWebAppInit');
+          }
+
+          // Получаем данные пользователя
+          const userData = await vkBridge.send('VKWebAppGetUserInfo');
+          setUser(userData);
+          
+          // Определяем роль
+          await determineUserRole(userData.id);
+        } else {
+          // Не во ВКонтакте
+          setIsVKEnvironment(false);
+        }
+      } catch (err) {
+        console.error('Ошибка инициализации:', err);
+        setIsVKEnvironment(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initApp();
+  }, []);
+
+  // Определение роли пользователя
+  const determineUserRole = async (userId: number) => {
     try {
-      // Проверяем, главный ли админ
-      if (isSuperAdmin(userId)) {
+      // Главный админ
+      if (userId === SUPER_ADMIN_ID) {
         setRole('superadmin');
         return;
       }
 
-      // Проверяем, админ ли приложения
+      // Админ приложения
       const isAdmin = await isAppAdmin(userId);
       if (isAdmin) {
         setRole('admin');
         return;
       }
 
-      // Проверяем, капитан ли
+      // Капитан команды
+      const { db } = await import('./firebase');
+      const { collection, query, where, getDocs } = await import('firebase/firestore');
+      
       const teamQ = query(collection(db, 'teams'), where('captainVkId', '==', userId));
       const teamSnap = await getDocs(teamQ);
       const userTeams: Team[] = [];
@@ -73,34 +111,29 @@ const App = () => {
         setRole('guest');
       }
     } catch (err) {
-      console.error('Ошибка загрузки данных:', err);
+      console.error('Ошибка определения роли:', err);
       setRole('guest');
       setSnackbar('Не удалось загрузить данные');
     }
   };
 
-  // Инициализация приложения
-  useEffect(() => {
-    const init = async () => {
-      try {
-        initVK();
-        const userData = await getUserInfo();
-        setUser(userData);
-        await loadUserData(userData.id);
-      } catch (err) {
-        console.warn('Режим гостя:', err);
-        setRole('guest');
-      } finally {
-        setLoading(false);
-      }
-    };
-    init();
-  }, []);
-
   // Обработка выбора роли
   const handleRoleSelected = (newRole: UserRole) => {
     setSelectedRole(newRole);
   };
+
+  // Заглушка для внешних пользователей
+  if (!isVKEnvironment && !loading) {
+    return (
+      <Div style={{ padding: 20, textAlign: 'center' }}>
+        <h2>⚽ Футбольная Алмазная Лига</h2>
+        <p>Приложение доступно только во ВКонтакте</p>
+        <a href="https://vk.com/app54429454" style={{ color: '#0077ff' }}>
+          Открыть в VK
+        </a>
+      </Div>
+    );
+  }
 
   if (loading) {
     return (
@@ -116,7 +149,7 @@ const App = () => {
     );
   }
 
-  // Если пользователь имеет несколько ролей — показываем выбор
+  // Выбор роли при нескольких возможностях
   if ((role === 'admin' || role === 'superadmin') && teams.length > 0 && !selectedRole) {
     return <RoleSelector onRoleSelected={handleRoleSelected} />;
   }
