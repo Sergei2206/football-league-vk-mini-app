@@ -1,39 +1,41 @@
 import vkBridge from '@vkontakte/vk-bridge';
 
-// Проверяем, что приложение запущено во ВКонтакте
 const isVKEnvironment = () => {
   return typeof window !== 'undefined' && 
          (window.location.search.includes('vk_app_id') || 
-          window.location.href.includes('vk.com/app'));
+          window.location.hostname === 'vk.com');
 };
 
 export const initVK = () => {
-  if (isVKEnvironment() && vkBridge.supports('VKWebAppInit')) {
+  if (isVKEnvironment()) {
+    console.log('VK Bridge initializing...');
     try {
-      vkBridge.send('VKWebAppInit');
+      if (vkBridge.supports('VKWebAppInit')) {
+        vkBridge.send('VKWebAppInit');
+        console.log('VKWebAppInit sent');
+      }
     } catch (error) {
       console.warn('VK Bridge init failed:', error);
     }
+  } else {
+    console.log('Not in VK environment');
   }
 };
 
 export const getUserInfo = (): Promise<any> => {
   return new Promise((resolve, reject) => {
     if (!isVKEnvironment()) {
-      // Фолбэк для локальной разработки
-      resolve({
-        id: 123456789,
-        first_name: 'Гость',
-        last_name: 'Тестовый',
-        photo_200: '',
-        is_guest: true
-      });
+      resolve({ id: 0, first_name: 'Гость', last_name: '', is_guest: true });
       return;
     }
 
     try {
+      console.log('Requesting user info...');
       vkBridge.send('VKWebAppGetUserInfo')
-        .then(resolve)
+        .then((userData) => {
+          console.log('User data received:', userData);
+          resolve(userData);
+        })
         .catch(reject);
     } catch (error) {
       reject(error);
