@@ -1,131 +1,270 @@
 import React, { useEffect, useState } from 'react';
-import { Root, View, Panel, Div, Spinner, Snackbar } from '@vkontakte/vkui';
+import {
+  ConfigProvider,
+  AdaptivityProvider,
+  AppRoot,
+  Root,
+  View,
+  Panel,
+  Div,
+  ScreenSpinner,
+  Snackbar,
+  PanelHeader,
+  PanelHeaderButton,
+  Cell,
+  useAdaptivityWithJSMediaQueries
+} from '@vkontakte/vkui';
+import { Icon24MenuOutline } from '@vkontakte/icons';
 import vkBridge from '@vkontakte/vk-bridge';
+
+// Компоненты
+import SuperAdminPanel from './tabs/SuperAdminPanel';
+import AdminDashboard from './tabs/admin/AdminDashboard';
+import PublicView from './tabs/PublicView';
+import CaptainDashboard from './tabs/captain/CaptainDashboard';
 
 // Утилиты
 import { isAppAdmin } from './utils/appAdmins';
-
-// Компоненты
-import RoleSelector from './tabs/RoleSelector';
-import AdminDashboard from './tabs/AdminDashboard';
-import SuperAdminPanel from './tabs/SuperAdminPanel';
-import PublicView from './tabs/PublicView';
+import { db } from './firebase';
+import { doc, setDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 
 // Типы
-type UserRole = 'guest' | 'captain' | 'admin' | 'superadmin';
-
-interface Tournament {
-  id: string;
-  name: string;
-  adminVkId: number;
-  coAdmins?: number[];
-  type: 'league' | 'cup';
-  format: string;
-  startDate: any;
-  logoUrl?: string;
-}
-
-interface Team {
-  id: string;
-  name: string;
-  tournamentId: string;
-  captainVkId: number;
-  logoUrl?: string;
-}
+type UserRole = 'guest' | 'admin' | 'superadmin' | 'captain';
 
 const SUPER_ADMIN_ID = 91747933;
 const isSuperAdmin = (userId: number) => userId === SUPER_ADMIN_ID;
 
-const App = () => {
+const isCaptain = async (userId: number) => {
+  try {
+    const teamsQuery = query(
+      collection(db, 'teams'),
+      where('captainVkId', '==', userId)
+    );
+    const snapshot = await getDocs(teamsQuery);
+    return !snapshot.empty;
+  } catch (err) {
+    console.error('Ошибка проверки капитана:', err);
+    return false;
+  }
+};
+
+const Sidebar = ({ 
+  user, 
+  availableRoles, 
+  activeRole, 
+  onRoleSelect, 
+  onClose 
+}: {
+  user: any;
+  availableRoles: UserRole[];
+  activeRole: UserRole;
+  onRoleSelect: (role: UserRole) => void;
+  onClose: () => void;
+}) => {
+  const getRoleLabel = (role: UserRole) => {
+    switch (role) {
+      case 'superadmin': return 'Суперадмин';
+      case 'admin': return 'Админ';
+      case 'captain': return 'Капитан';
+      case 'guest': return 'Гость';
+      default: return 'Гость';
+    }
+  };
+
+  return (
+    <div 
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '280px',
+        height: '100vh',
+        backgroundColor: '#ffffff',
+        zIndex: 1001,
+        boxShadow: '4px 0 16px rgba(0, 0, 0, 0.25)',
+        overflowY: 'auto'
+      }}
+    >
+      {/* Заголовок меню с аватаром */}
+      <Div style={{ 
+        padding: '20px 20px 16px',
+        borderBottom: '1px solid #e1e3e6',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px'
+      }}>
+        {/* Маленький аватар-кружок */}
+        <div style={{
+          width: '32px',
+          height: '32px',
+          borderRadius: '50%',
+          overflow: 'hidden',
+          border: '2px solid #e1e3e6'
+        }}>
+          {user?.photo_100 ? (
+            <img 
+              src={user.photo_100} 
+              alt="Аватар" 
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover'
+              }}
+            />
+          ) : (
+            <div style={{
+              width: '100%',
+              height: '100%',
+              backgroundColor: '#f2f3f5',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#999',
+              fontWeight: 'bold',
+              fontSize: '14px'
+            }}>
+              {user?.first_name?.[0] || '?'}
+            </div>
+          )}
+        </div>
+        <div style={{ 
+          fontSize: '16px', 
+          fontWeight: 600,
+          color: '#000000',
+          lineHeight: 1.3,
+          wordBreak: 'break-word'
+        }}>
+          {user?.first_name} {user?.last_name}
+        </div>
+      </Div>
+
+      {/* Выбор ролей */}
+      <Div style={{ padding: '20px 20px 20px' }}>
+        <div style={{ 
+          fontSize: '16px', 
+          fontWeight: 600,
+          color: '#000000',
+          marginBottom: '14px'
+        }}>
+          Роли
+        </div>
+        {availableRoles.map((role: UserRole) => (
+          <Cell
+            key={role}
+            onClick={() => {
+              onRoleSelect(role);
+              onClose();
+            }}
+            style={{
+              padding: '12px 16px',
+              borderRadius: '8px',
+              marginBottom: '8px',
+              backgroundColor: activeRole === role ? '#f2f3f5' : 'transparent',
+              color: '#000000',
+              fontWeight: activeRole === role ? 600 : 500,
+              fontSize: '16px',
+              transition: 'background-color 0.2s'
+            }}
+          >
+            {getRoleLabel(role)}
+          </Cell>
+        ))}
+      </Div>
+    </div>
+  );
+};
+
+const Overlay = ({ onClick }: { onClick: () => void }) => {
+  return (
+    <div 
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        zIndex: 1000
+      }}
+      onClick={onClick}
+    />
+  );
+};
+
+const AppContent = () => {
   const [user, setUser] = useState<any>(null);
-  const [role, setRole] = useState<UserRole>('guest');
-  const [tournaments, setTournaments] = useState<Tournament[]>([]);
-  const [teams, setTeams] = useState<Team[]>([]);
+  const [availableRoles, setAvailableRoles] = useState<UserRole[]>([]);
+  const [activeRole, setActiveRole] = useState<UserRole>('guest');
   const [loading, setLoading] = useState(true);
-  const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [snackbar, setSnackbar] = useState<string | null>(null);
-  const [isVKEnvironment, setIsVKEnvironment] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(false);
+  
 
   useEffect(() => {
     const initApp = async () => {
       try {
-        if (typeof window !== 'undefined' && vkBridge) {
-          setIsVKEnvironment(true);
-          
-          if (vkBridge.supports('VKWebAppInit')) {
-            await vkBridge.send('VKWebAppInit');
-          }
-
-          const userData = await vkBridge.send('VKWebAppGetUserInfo');
-          setUser(userData);
-          await determineUserRole(userData.id);
-        } else {
-          setIsVKEnvironment(false);
+        if (vkBridge.supports('VKWebAppInit')) {
+          await vkBridge.send('VKWebAppInit');
         }
+
+        const userData = await vkBridge.send('VKWebAppGetUserInfo');
+        setUser(userData);
+        
+        // === АВТОМАТИЧЕСКОЕ СОЗДАНИЕ/ОБНОВЛЕНИЕ ДАННЫХ ПОЛЬЗОВАТЕЛЯ ===
+        const userRef = doc(db, 'vkUsers', userData.id.toString());
+        await setDoc(userRef, { 
+          id: userData.id, 
+          first_name: userData.first_name,
+          last_name: userData.last_name,
+          photo_50: userData.photo_100 || ''
+        }, { merge: true });
+        // ========================================================
+        
+        // Определяем доступные роли
+        const roles: UserRole[] = ['guest'];
+        
+        // Проверяем роль капитана
+        if (await isCaptain(userData.id)) {
+          roles.push('captain');
+        }
+        
+        // Проверяем роль админа
+        if (await isAppAdmin(userData.id)) {
+          roles.push('admin');
+        }
+        
+        // Проверяем роль суперадмина
+        if (isSuperAdmin(userData.id)) {
+          roles.push('superadmin');
+        }
+        
+        setAvailableRoles(roles);
       } catch (err) {
         console.error('Ошибка инициализации:', err);
-        setIsVKEnvironment(false);
+        setSnackbar('Не удалось загрузить приложение');
       } finally {
         setLoading(false);
       }
     };
 
-    initApp();
+    if (typeof window !== 'undefined') {
+      initApp();
+    } else {
+      setLoading(false);
+      setSnackbar('Приложение доступно только во ВКонтакте');
+    }
   }, []);
 
-  const determineUserRole = async (userId: number) => {
-    try {
-      if (isSuperAdmin(userId)) {
-        setRole('superadmin');
-        return;
-      }
+  if (loading) {
+    return (
+      <Div style={{ textAlign: 'center', padding: '20px' }}>
+        <ScreenSpinner size="large" />
+      </Div>
+    );
+  }
 
-      const isAdmin = await isAppAdmin(userId);
-      if (isAdmin) {
-        setRole('admin');
-        
-        // Загрузка турниров админа
-        const { db } = await import('./firebase');
-        const { collection, query, where, getDocs } = await import('firebase/firestore');
-        
-        const q = query(collection(db, 'tournaments'), where('adminVkId', '==', userId));
-        const snapshot = await getDocs(q);
-        const userTournaments: Tournament[] = [];
-        snapshot.docs.forEach(doc => {
-          userTournaments.push({ id: doc.id, ...doc.data() } as Tournament);
-        });
-        setTournaments(userTournaments);
-        
-        return;
-      }
-
-      // Проверка капитанов
-      const { db } = await import('./firebase');
-      const { collection, query, where, getDocs } = await import('firebase/firestore');
-      
-      const teamQ = query(collection(db, 'teams'), where('captainVkId', '==', userId));
-      const teamSnap = await getDocs(teamQ);
-      const userTeams: Team[] = [];
-      teamSnap.docs.forEach(doc => userTeams.push({ id: doc.id, ...doc.data() } as Team));
-
-      if (userTeams.length > 0) {
-        setTeams(userTeams);
-        setRole('captain');
-      } else {
-        setRole('guest');
-      }
-    } catch (err) {
-      console.error('Ошибка определения роли:', err);
-      setRole('guest');
-      setSnackbar('Не удалось загрузить данные');
-    }
-  };
-
-  const handleRoleSelected = (newRole: UserRole) => {
-    setSelectedRole(newRole);
-  };
-
-  if (!isVKEnvironment && !loading) {
+  if (!user && !snackbar) {
     return (
       <Div style={{ padding: 20, textAlign: 'center' }}>
         <h2>⚽ Футбольная Алмазная Лига</h2>
@@ -137,50 +276,79 @@ const App = () => {
     );
   }
 
-  if (loading) {
-    return (
-      <Root activeView="loading">
-        <View id="loading" activePanel="loading">
-          <Panel id="loading">
-            <Div style={{ textAlign: 'center', padding: '20px' }}>
-              <Spinner size="medium" />
-            </Div>
+  const handleRoleSelect = (role: UserRole) => {
+    setActiveRole(role);
+  };
+
+  const toggleSidebar = () => {
+    setShowSidebar(prev => !prev);
+  };
+
+  const renderMainContent = () => {
+    switch (activeRole) {
+      case 'superadmin':
+        return <SuperAdminPanel user={user} />;
+      case 'admin':
+        return <AdminDashboard user={user} />;
+      case 'captain':
+        return <CaptainDashboard user={user} onSnackbar={(msg) => setSnackbar(msg)} />;
+      default:
+        return <PublicView />;
+    }
+  };
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <PanelHeader
+        before={
+          availableRoles.length > 1 ? (
+            <PanelHeaderButton onClick={toggleSidebar}>
+              <Icon24MenuOutline />
+            </PanelHeaderButton>
+          ) : null
+        }
+      >
+      </PanelHeader>
+      
+      <Root activeView="main">
+        <View id="main" activePanel="main">
+          <Panel id="main">
+            {renderMainContent()}
           </Panel>
         </View>
       </Root>
-    );
-  }
 
-  if ((role === 'admin' || role === 'superadmin') && teams.length > 0 && !selectedRole) {
-    return <RoleSelector onRoleSelected={handleRoleSelected} />;
-  }
+      {showSidebar && (
+        <>
+          <Overlay onClick={() => setShowSidebar(false)} />
+          <Sidebar 
+            user={user}
+            availableRoles={availableRoles}
+            activeRole={activeRole}
+            onRoleSelect={handleRoleSelect}
+            onClose={() => setShowSidebar(false)}
+          />
+        </>
+      )}
 
-  const effectiveRole = selectedRole || role;
+      {snackbar && (
+        <Snackbar duration={3000} onClose={() => setSnackbar(null)}>
+          {snackbar}
+        </Snackbar>
+      )}
+    </div>
+  );
+};
 
+const App = () => {
   return (
-    <Root activeView="main">
-      <>
-        <View id="main" activePanel="main">
-          <Panel id="main">
-            {effectiveRole === 'superadmin' ? (
-              <SuperAdminPanel user={user} />
-            ) : effectiveRole === 'admin' ? (
-              <AdminDashboard user={user} tournaments={tournaments} />
-            ) : effectiveRole === 'captain' ? (
-              <PublicView user={user} teams={teams} />
-            ) : (
-              <PublicView />
-            )}
-          </Panel>
-        </View>
-
-        {snackbar && (
-          <Snackbar duration={3000} onClose={() => setSnackbar(null)}>
-            {snackbar}
-          </Snackbar>
-        )}
-      </>
-    </Root>
+    <ConfigProvider>
+      <AdaptivityProvider>
+        <AppRoot>
+          <AppContent />
+        </AppRoot>
+      </AdaptivityProvider>
+    </ConfigProvider>
   );
 };
 
