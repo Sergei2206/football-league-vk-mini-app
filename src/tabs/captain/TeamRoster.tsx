@@ -73,7 +73,8 @@ const TeamRoster = ({ tournament, user, onSnackbar, onAddPlayer }: TeamRosterPro
       // Проверяем каждый файл
       for (const logo of logoNames) {
         try {
-          const response = await fetch(`/team-logos/${logo}`, { method: 'HEAD' });
+          // Используем относительный путь без слэша в начале
+          const response = await fetch(`team-logos/${logo}`, { method: 'HEAD' });
           if (response.ok) {
             existingLogos.push(logo);
           }
@@ -250,7 +251,8 @@ const TeamRoster = ({ tournament, user, onSnackbar, onAddPlayer }: TeamRosterPro
                     }}
                   >
                     <img 
-                      src={`/team-logos/${filename}`} 
+                      // ИСПОЛЬЗУЕМ ОТНОСИТЕЛЬНЫЙ ПУТЬ БЕЗ СЛЕША В НАЧАЛЕ
+                      src={`team-logos/${filename}`} 
                       alt={getLogoDisplayName(filename)}
                       style={{ 
                         width: '50px', 
