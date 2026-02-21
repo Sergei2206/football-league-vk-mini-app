@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Div, FormLayout, Input, Button, Snackbar } from '@vkontakte/vkui';
 import { updateDoc, doc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db } from '../../firebase';
 
 interface LogoUrlInputProps {
   // Для турнира

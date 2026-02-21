@@ -1,50 +1,41 @@
 {
   "name": "football-league-vk-mini-app",
   "version": "1.0.0",
-  "private": true,
-  "description": "Футбольная Алмазная Лига — Mini App для управления турнирами во ВКонтакте",
-  "homepage": ".",
+  "type": "module",
+  "description": "Система управления футбольными турнирами Мирный",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
+  },
   "dependencies": {
-    "@typescript-eslint/eslint-plugin": "^8.53.1",
-    "@typescript-eslint/parser": "^8.53.1",
-    "@vkontakte/vk-bridge": "^2.8.0",
-    "@vkontakte/vkui": "^5.10.0",
-    "firebase": "^10.12.0",
-    "react": "^18.3.0",
-    "react-dom": "^18.3.0"
+    "@vkontakte/icons": "^3.36.0",
+    "@vkontakte/vk-bridge": "^2.15.0",
+    "@vkontakte/vkui": "^5.10.2",
+    "firebase": "^10.7.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "@types/react": "^18.3.0",
-    "@types/react-dom": "^18.3.0",
-    "ajv": "^8.12.0",
-    "ajv-keywords": "^5.1.0",
-    "gh-pages": "^6.1.1",
-    "react-scripts": "^5.0.1",
-    "typescript": "^5.1.6"
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "@vitejs/plugin-react": "^4.2.0",
+    "eslint": "^8.45.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.3",
+    "terser": "^5.46.0",
+    "typescript": "^5.1.6",
+    "vite": "^5.0.0"
   },
-  "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject",
-    "deploy": "gh-pages -d build"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
-  }
+  "keywords": [
+    "vk-mini-app",
+    "football",
+    "tournament",
+    "vkui"
+  ],
+  "author": "Sergei Zastrogin",
+  "license": "MIT"
 }

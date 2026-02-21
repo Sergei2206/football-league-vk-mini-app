@@ -1,0 +1,255 @@
+Отличная идея! Давай создадим **модульную, масштабируемую структуру** проекта, которая упростит поддержку и обновления.
+
+---
+
+## 📁 Рекомендуемая структура проекта
+
+```
+src/
+├── core/                    # Ядро приложения
+│   ├── config/             # Конфигурации
+│   │   ├── firebase.ts     # Firebase настройки
+│   │   └── app.ts          # Общие настройки приложения
+│   ├── hooks/              # Кастомные хуки
+│   │   ├── useUser.ts
+│   │   ├── useTournaments.ts
+│   │   ├── useTeams.ts
+│   │   └── useNavigation.ts
+│   └── utils/              # Утилиты
+│       ├── auth.ts
+│       ├── validation.ts
+│       └── helpers.ts
+│
+├── types/                  # Типы TypeScript
+│   ├── index.ts            # Экспорт всех типов
+│   ├── tournament.ts
+│   ├── team.ts
+│   ├── player.ts
+│   └── user.ts
+│
+├── components/             # Переиспользуемые компоненты
+│   ├── layout/             # Макеты
+│   │   ├── AppLayout.tsx
+│   │   └── PageHeader.tsx
+│   ├── ui/                 # UI компоненты
+│   │   ├── LogoSelector.tsx
+│   │   ├── PlayerCard.tsx
+│   │   ├── TournamentCard.tsx
+│   │   └── StatusBadge.tsx
+│   └── common/             # Общие компоненты
+│       ├── LoadingSpinner.tsx
+│       ├── ErrorBoundary.tsx
+│       └── EmptyState.tsx
+│
+├── features/               # Фичи (основная логика)
+│   ├── auth/               # Авторизация
+│   │   ├── AuthProvider.tsx
+│   │   └── LoginView.tsx
+│   ├── tournaments/        # Турниры
+│   │   ├── components/
+│   │   ├── hooks/
+│   │   └── views/
+│   ├── teams/              # Команды
+│   │   ├── components/
+│   │   ├── hooks/
+│   │   └── views/
+│   └── matches/            # Матчи
+│       ├── components/
+│       ├── hooks/
+│       └── views/
+│
+├── routes/                 # Роутинг и навигация
+│   ├── Router.tsx
+│   ├── NavigationConfig.ts
+│   └── ProtectedRoute.tsx
+│
+├── assets/                 # Статические файлы
+│   ├── icons/              # Кастомные иконки
+│   └── images/             # Изображения
+│
+├── public/                 # Публичные файлы
+│   ├── team-logos/         # Логотипы команд
+│   └── index.html
+│
+└── main.tsx                # Точка входа
+```
+
+---
+
+## 🔧 Преимущества такой структуры
+
+### ✅ **Модульность**
+- Каждая фича — независимый модуль
+- Легко добавлять/удалять функциональность
+- Чёткое разделение ответственности
+
+### ✅ **Масштабируемость**
+- Легко расширять приложение
+- Новые разработчики быстро ориентируются
+- Минимальные конфликты при работе в команде
+
+### ✅ **Поддержка**
+- Легко находить нужный код
+- Простые обновления отдельных частей
+- Чёткие границы между слоями
+
+### ✅ **Тестирование**
+- Каждый модуль можно тестировать отдельно
+- Хуки легко мокать
+- Компоненты изолированы
+
+---
+
+## 📄 Пример реализации ключевых частей
+
+### 🔥 `src/core/hooks/useNavigation.ts`
+```tsx
+// Единая точка навигации для всего приложения
+import { useState } from 'react';
+
+export const useNavigation = () => {
+  const [currentView, setCurrentView] = useState('public');
+  const [currentPanel, setCurrentPanel] = useState('public');
+
+  const navigateTo = (view: string, panel: string) => {
+    setCurrentView(view);
+    setCurrentPanel(panel);
+  };
+
+  const goBack = () => {
+    // Логика возврата
+  };
+
+  return {
+    currentView,
+    currentPanel,
+    navigateTo,
+    goBack
+  };
+};
+```
+
+### 🔥 `src/types/index.ts`
+```ts
+// Единая точка экспорта всех типов
+export * from './tournament';
+export * from './team';
+export * from './player';
+export * from './user';
+```
+
+### 🔥 `src/components/ui/LogoSelector.tsx`
+```tsx
+// Переиспользуемый компонент выбора логотипа
+import React from 'react';
+import { PopoutWrapper, List, Cell } from '@vkontakte/vkui';
+import { Icon28Users3Outline } from '@vkontakte/icons';
+
+interface LogoSelectorProps {
+  availableLogos: string[];
+  selectedLogo: string;
+  onLogoSelect: (logo: string) => void;
+  show: boolean;
+  onClose: () => void;
+}
+
+export const LogoSelector = ({ 
+  availableLogos, 
+  selectedLogo, 
+  onLogoSelect, 
+  show, 
+  onClose 
+}: LogoSelectorProps) => {
+  return (
+    <PopoutWrapper onClick={onClose} closing={!show}>
+      <List>
+        {availableLogos.map(filename => (
+          <Cell
+            key={filename}
+            onClick={() => onLogoSelect(filename)}
+            before={<Icon28Users3Outline />}
+          >
+            {filename.replace('.png', '')}
+          </Cell>
+        ))}
+      </List>
+    </PopoutWrapper>
+  );
+};
+```
+
+### 🔥 `src/features/teams/views/TeamRosterView.tsx`
+```tsx
+// Чистая бизнес-логика без лишнего кода
+import React from 'react';
+import { TeamRoster } from '../components/TeamRoster';
+import { useTeams } from '../../hooks/useTeams';
+import { useNavigation } from '../../../core/hooks/useNavigation';
+
+export const TeamRosterView = ({ tournament, user }) => {
+  const { players, loading, handleAddPlayer, handleDeletePlayer } = useTeams(tournament, user);
+  const { navigateTo } = useNavigation();
+
+  if (loading) return <div>Loading...</div>;
+
+  return (
+    <TeamRoster
+      players={players}
+      onAddPlayer={() => navigateTo('main', 'add-player')}
+      onDeletePlayer={handleDeletePlayer}
+      tournament={tournament}
+      user={user}
+    />
+  );
+};
+```
+
+---
+
+## 🚀 Как перейти к новой структуре
+
+### Шаг 1: Создай базовую структуру
+```bash
+mkdir -p src/{core/hooks,core/utils,types,components/layout,components/ui,features/auth,features/tournaments,features/teams,routes}
+```
+
+### Шаг 2: Перенеси существующий код по категориям
+- **Firebase config** → `src/core/config/firebase.ts`
+- **Типы** → `src/types/`
+- **Общие компоненты** → `src/components/`
+- **Фичи** → `src/features/`
+
+### Шаг 3: Обнови импорты
+Замени все импорты с относительных путей на абсолютные:
+```ts
+// Было:
+import { TeamRoster } from '../../tabs/captain/TeamRoster';
+
+// Стало:
+import { TeamRoster } from '@/features/teams/components/TeamRoster';
+```
+
+### Шаг 4: Настрой alias в tsconfig.json
+```json
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
+  }
+}
+```
+
+---
+
+## 💡 Советы по миграции
+
+1. **Начни с малого** — перенеси сначала `types` и `core/config`
+2. **Делай по одному модулю** — не пытайся переделать всё сразу
+3. **Тестируй после каждого шага** — убедись, что ничего не сломалось
+4. **Используй IDE** — большинство редакторов автоматически обновляют импорты при перемещении файлов
+
+---
+
+✅ Такая структура сделает твой проект **профессиональным, поддерживаемым и легко расширяемым**!

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Div, Button, Group, Cell, Caption, Spinner, Tabs, TabsItem } from '@vkontakte/vkui';
-import { db } from '../firebase';
+import { db } from '../../firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import AddPlayerForm from './AddPlayerForm';
 import LogoUrlInput from '../components/LogoUrlInput';

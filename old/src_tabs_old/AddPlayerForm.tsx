@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { FormLayout, Input, Button, Div, Snackbar } from '@vkontakte/vkui';
 import { addDoc, collection } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db } from '../../firebase';
 
 interface AddPlayerFormProps {
   teamId: string;

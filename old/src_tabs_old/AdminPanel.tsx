@@ -13,7 +13,7 @@ import {
   Caption,
   PanelHeader
 } from '@vkontakte/vkui';
-import { db } from '../firebase';
+import { db } from '../../firebase';
 import { 
   collection, 
   query, 

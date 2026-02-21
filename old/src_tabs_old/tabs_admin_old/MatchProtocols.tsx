@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Group, Div, Cell, Button, FormLayout, Input, Spinner, Card } from '@vkontakte/vkui';
-import { db } from '../../firebase';
+import { db } from '../../../firebase';
 import { collection, getDocs, query, where, doc, getDoc, updateDoc } from 'firebase/firestore';
 
 interface Match {

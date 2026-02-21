@@ -1,355 +1,379 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  ConfigProvider,
-  AdaptivityProvider,
   AppRoot,
-  Root,
+  SplitLayout,
+  SplitCol,
   View,
   Panel,
-  Div,
-  ScreenSpinner,
-  Snackbar,
   PanelHeader,
-  PanelHeaderButton,
-  Cell,
-  useAdaptivityWithJSMediaQueries
+  PanelHeaderBack,
+  ConfigProvider,
+  AdaptivityProvider,
+  useAdaptivityWithJSMediaQueries,
+  Snackbar,
+  ScreenSpinner,
+  Div,
+  Title,
+  Text,
+  Card,
+  CardGrid,
+  Avatar,
+  Counter
 } from '@vkontakte/vkui';
-import { Icon24MenuOutline } from '@vkontakte/icons';
-import vkBridge from '@vkontakte/vk-bridge';
+import {
+  Icon28UserCircleOutline,
+  Icon28CupOutline,
+  Icon28Users3Outline,
+  Icon28ChevronBack
+} from '@vkontakte/icons';
 
-// Компоненты
+// Импорты компонентов
+import PublicView from './tabs/PublicView';
 import SuperAdminPanel from './tabs/SuperAdminPanel';
 import AdminDashboard from './tabs/admin/AdminDashboard';
-import PublicView from './tabs/PublicView';
+import TournamentDetail from './tabs/admin/TournamentDetail';
 import CaptainDashboard from './tabs/captain/CaptainDashboard';
+import CaptainTournament from './tabs/captain/CaptainTournament';
+import TeamRoster from './tabs/captain/TeamRoster';
+import AddPlayer from './tabs/captain/AddPlayer';
+import MatchSchedule from './tabs/captain/MatchSchedule';
+import CompletedMatches from './tabs/captain/CompletedMatches';
 
-// Утилиты
-import { isAppAdmin } from './utils/appAdmins';
-import { db } from './firebase';
-import { doc, setDoc } from 'firebase/firestore';
-import { collection, getDocs, query, where } from 'firebase/firestore';
-
-// Типы
-type UserRole = 'guest' | 'admin' | 'superadmin' | 'captain';
-
-const SUPER_ADMIN_ID = 91747933;
-const isSuperAdmin = (userId: number) => userId === SUPER_ADMIN_ID;
-
-const isCaptain = async (userId: number) => {
-  try {
-    const teamsQuery = query(
-      collection(db, 'teams'),
-      where('captainVkId', '==', userId)
-    );
-    const snapshot = await getDocs(teamsQuery);
-    return !snapshot.empty;
-  } catch (err) {
-    console.error('Ошибка проверки капитана:', err);
-    return false;
-  }
-};
-
-const Sidebar = ({ 
-  user, 
-  availableRoles, 
-  activeRole, 
-  onRoleSelect, 
-  onClose 
-}: {
-  user: any;
-  availableRoles: UserRole[];
-  activeRole: UserRole;
-  onRoleSelect: (role: UserRole) => void;
-  onClose: () => void;
-}) => {
-  const getRoleLabel = (role: UserRole) => {
-    switch (role) {
-      case 'superadmin': return 'Суперадмин';
-      case 'admin': return 'Админ';
-      case 'captain': return 'Капитан';
-      case 'guest': return 'Гость';
-      default: return 'Гость';
-    }
-  };
-
-  return (
-    <div 
+const NavigationIcon = ({ icon: Icon, label, counter, onClick, active }: any) => (
+  <Div
+    style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '8px',
+      borderRadius: '12px',
+      backgroundColor: active ? 'var(--vkui--color_background_accent)' : 'transparent',
+      cursor: 'pointer',
+      transition: 'all 0.2s ease'
+    }}
+    onClick={onClick}
+  >
+    <div style={{ position: 'relative' }}>
+      <Icon width={24} height={24} fill={active ? 'white' : 'var(--vkui--color_icon_secondary)'} />
+      {counter > 0 && (
+        <Counter size="s" style={{ position: 'absolute', top: '-4px', right: '-4px' }}>
+          {counter}
+        </Counter>
+      )}
+    </div>
+    <Text
       style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '280px',
-        height: '100vh',
-        backgroundColor: '#ffffff',
-        zIndex: 1001,
-        boxShadow: '4px 0 16px rgba(0, 0, 0, 0.25)',
-        overflowY: 'auto'
+        fontSize: '12px',
+        marginTop: '4px',
+        color: active ? 'white' : 'var(--vkui--color_text_secondary)'
       }}
     >
-      {/* Заголовок меню с аватаром */}
-      <Div style={{ 
-        padding: '20px 20px 16px',
-        borderBottom: '1px solid #e1e3e6',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '12px'
-      }}>
-        {/* Маленький аватар-кружок */}
-        <div style={{
-          width: '32px',
-          height: '32px',
-          borderRadius: '50%',
-          overflow: 'hidden',
-          border: '2px solid #e1e3e6'
-        }}>
-          {user?.photo_100 ? (
-            <img 
-              src={user.photo_100} 
-              alt="Аватар" 
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover'
-              }}
-            />
-          ) : (
-            <div style={{
-              width: '100%',
-              height: '100%',
-              backgroundColor: '#f2f3f5',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#999',
-              fontWeight: 'bold',
-              fontSize: '14px'
-            }}>
-              {user?.first_name?.[0] || '?'}
-            </div>
-          )}
-        </div>
-        <div style={{ 
-          fontSize: '16px', 
-          fontWeight: 600,
-          color: '#000000',
-          lineHeight: 1.3,
-          wordBreak: 'break-word'
-        }}>
-          {user?.first_name} {user?.last_name}
-        </div>
-      </Div>
+      {label}
+    </Text>
+  </Div>
+);
 
-      {/* Выбор ролей */}
-      <Div style={{ padding: '20px 20px 20px' }}>
-        <div style={{ 
-          fontSize: '16px', 
-          fontWeight: 600,
-          color: '#000000',
-          marginBottom: '14px'
-        }}>
-          Роли
-        </div>
-        {availableRoles.map((role: UserRole) => (
-          <Cell
-            key={role}
-            onClick={() => {
-              onRoleSelect(role);
-              onClose();
-            }}
-            style={{
-              padding: '12px 16px',
-              borderRadius: '8px',
-              marginBottom: '8px',
-              backgroundColor: activeRole === role ? '#f2f3f5' : 'transparent',
-              color: '#000000',
-              fontWeight: activeRole === role ? 600 : 500,
-              fontSize: '16px',
-              transition: 'background-color 0.2s'
-            }}
-          >
-            {getRoleLabel(role)}
-          </Cell>
-        ))}
-      </Div>
-    </div>
-  );
-};
-
-const Overlay = ({ onClick }: { onClick: () => void }) => {
-  return (
-    <div 
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        zIndex: 1000
-      }}
-      onClick={onClick}
-    />
-  );
-};
-
-const AppContent = () => {
+const App = () => {
+  const { isDesktop } = useAdaptivityWithJSMediaQueries();
+  const [activePanel, setActivePanel] = useState('public');
   const [user, setUser] = useState<any>(null);
-  const [availableRoles, setAvailableRoles] = useState<UserRole[]>([]);
-  const [activeRole, setActiveRole] = useState<UserRole>('guest');
-  const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<'guest' | 'admin' | 'superadmin' | 'captain'>('guest');
   const [snackbar, setSnackbar] = useState<string | null>(null);
-  const [showSidebar, setShowSidebar] = useState(false);
-  
+  const [loading, setLoading] = useState(true);
+  const [selectedTournament, setSelectedTournament] = useState<any>(null);
 
   useEffect(() => {
-    const initApp = async () => {
+    const initUser = async () => {
       try {
-        if (vkBridge.supports('VKWebAppInit')) {
-          await vkBridge.send('VKWebAppInit');
-        }
-
-        const userData = await vkBridge.send('VKWebAppGetUserInfo');
-        setUser(userData);
-        
-        // === АВТОМАТИЧЕСКОЕ СОЗДАНИЕ/ОБНОВЛЕНИЕ ДАННЫХ ПОЛЬЗОВАТЕЛЯ ===
-        const userRef = doc(db, 'vkUsers', userData.id.toString());
-        await setDoc(userRef, { 
-          id: userData.id, 
-          first_name: userData.first_name,
-          last_name: userData.last_name,
-          photo_50: userData.photo_100 || ''
-        }, { merge: true });
-        // ========================================================
-        
-        // Определяем доступные роли
-        const roles: UserRole[] = ['guest'];
-        
-        // Проверяем роль капитана
-        if (await isCaptain(userData.id)) {
-          roles.push('captain');
-        }
-        
-        // Проверяем роль админа
-        if (await isAppAdmin(userData.id)) {
-          roles.push('admin');
-        }
-        
-        // Проверяем роль суперадмина
-        if (isSuperAdmin(userData.id)) {
-          roles.push('superadmin');
-        }
-        
-        setAvailableRoles(roles);
-      } catch (err) {
-        console.error('Ошибка инициализации:', err);
-        setSnackbar('Не удалось загрузить приложение');
+        setUser({
+          id: 91747933,
+          first_name: 'Сергей',
+          last_name: 'Застрогин',
+          photo_50: 'https://vk.com/images/question_50.png'
+        });
+        setUserRole('captain');
+      } catch (error) {
+        console.error('Ошибка инициализации:', error);
       } finally {
         setLoading(false);
       }
     };
-
-    if (typeof window !== 'undefined') {
-      initApp();
-    } else {
-      setLoading(false);
-      setSnackbar('Приложение доступно только во ВКонтакте');
-    }
+    initUser();
   }, []);
+
+  const showSnackbar = (message: string) => {
+    setSnackbar(message);
+    setTimeout(() => setSnackbar(null), 3000);
+  };
+
+  const navigateTo = (view: string, panel: string) => {
+    setActivePanel(panel);
+  };
+
+  const goBack = () => {
+    if (activePanel === 'tournament-detail') {
+      setActivePanel('admin-dashboard');
+    } else if (activePanel === 'captain-tournament') {
+      setActivePanel('captain-dashboard');
+    } else if (activePanel === 'team-roster') {
+      setActivePanel('captain-tournament');
+    } else if (activePanel === 'add-player') {
+      setActivePanel('team-roster');
+    } else if (activePanel === 'match-schedule') {
+      setActivePanel('captain-tournament');
+    } else if (activePanel === 'completed-matches') {
+      setActivePanel('captain-tournament');
+    } else {
+      setActivePanel('public');
+    }
+  };
+
+  const shouldShowBackButton = () => {
+    return ['tournament-detail', 'captain-tournament', 'team-roster', 'add-player', 'match-schedule', 'completed-matches'].includes(activePanel);
+  };
 
   if (loading) {
     return (
-      <Div style={{ textAlign: 'center', padding: '20px' }}>
-        <ScreenSpinner size="large" />
-      </Div>
-    );
-  }
-
-  if (!user && !snackbar) {
-    return (
-      <Div style={{ padding: 20, textAlign: 'center' }}>
-        <h2>⚽ Футбольная Алмазная Лига</h2>
-        <p>Приложение доступно только во ВКонтакте</p>
-        <a href="https://vk.com/app54429454" style={{ color: '#0077ff' }}>
-          Открыть в VK
-        </a>
-      </Div>
-    );
-  }
-
-  const handleRoleSelect = (role: UserRole) => {
-    setActiveRole(role);
-  };
-
-  const toggleSidebar = () => {
-    setShowSidebar(prev => !prev);
-  };
-
-  const renderMainContent = () => {
-    switch (activeRole) {
-      case 'superadmin':
-        return <SuperAdminPanel user={user} />;
-      case 'admin':
-        return <AdminDashboard user={user} />;
-      case 'captain':
-        return <CaptainDashboard user={user} onSnackbar={(msg) => setSnackbar(msg)} />;
-      default:
-        return <PublicView />;
-    }
-  };
-
-  return (
-    <div style={{ position: 'relative' }}>
-      <PanelHeader
-        before={
-          availableRoles.length > 1 ? (
-            <PanelHeaderButton onClick={toggleSidebar}>
-              <Icon24MenuOutline />
-            </PanelHeaderButton>
-          ) : null
-        }
-      >
-      </PanelHeader>
-      
-      <Root activeView="main">
-        <View id="main" activePanel="main">
-          <Panel id="main">
-            {renderMainContent()}
-          </Panel>
-        </View>
-      </Root>
-
-      {showSidebar && (
-        <>
-          <Overlay onClick={() => setShowSidebar(false)} />
-          <Sidebar 
-            user={user}
-            availableRoles={availableRoles}
-            activeRole={activeRole}
-            onRoleSelect={handleRoleSelect}
-            onClose={() => setShowSidebar(false)}
-          />
-        </>
-      )}
-
-      {snackbar && (
-        <Snackbar duration={3000} onClose={() => setSnackbar(null)}>
-          {snackbar}
-        </Snackbar>
-      )}
-    </div>
-  );
-};
-
-const App = () => {
-  return (
-    <ConfigProvider>
       <AdaptivityProvider>
-        <AppRoot>
-          <AppContent />
-        </AppRoot>
+        <ConfigProvider appearance="light">
+          <AppRoot>
+            <ScreenSpinner state="loading" />
+          </AppRoot>
+        </ConfigProvider>
       </AdaptivityProvider>
-    </ConfigProvider>
+    );
+  }
+
+  return (
+    <AdaptivityProvider>
+      <ConfigProvider appearance="light">
+        <AppRoot>
+          <SplitLayout
+            header={!isDesktop && <PanelHeader separator={false} />}
+            style={{ justifyContent: 'center' }}
+          >
+            <SplitCol
+              spaced={isDesktop}
+              animate={!isDesktop}
+              width={isDesktop ? '560px' : '100%'}
+              maxWidth={isDesktop ? '560px' : '100%'}
+            >
+              <View activePanel={activePanel}>
+                <Panel id="public" nav="public">
+                  <PanelHeader>Футбольная лига Мирный</PanelHeader>
+                  <PublicView 
+                    onNavigate={navigateTo} 
+                    onSnackbar={showSnackbar}
+                    tournaments={[]}
+                  />
+                </Panel>
+
+                <Panel id="superadmin" nav="superadmin">
+                  <PanelHeader>Супер Админка</PanelHeader>
+                  <SuperAdminPanel onSnackbar={showSnackbar} />
+                </Panel>
+
+                <Panel id="admin-dashboard" nav="admin-dashboard">
+                  <PanelHeader>Панель администратора</PanelHeader>
+                  <AdminDashboard 
+                    onNavigate={navigateTo} 
+                    onSnackbar={showSnackbar}
+                    onSelectTournament={setSelectedTournament}
+                  />
+                </Panel>
+
+                <Panel id="tournament-detail" nav="tournament-detail">
+                  <PanelHeader
+                    before={shouldShowBackButton() && <PanelHeaderBack onClick={goBack} />}
+                  >
+                    {selectedTournament?.name || 'Турнир'}
+                  </PanelHeader>
+                  <TournamentDetail 
+                    tournament={selectedTournament}
+                    onNavigate={navigateTo}
+                    onSnackbar={showSnackbar}
+                    onBack={goBack}
+                  />
+                </Panel>
+
+                <Panel id="captain-dashboard" nav="captain-dashboard">
+                  <PanelHeader>Мои команды</PanelHeader>
+                  <CaptainDashboard 
+                    user={user}
+                    onNavigate={navigateTo}
+                    onSnackbar={showSnackbar}
+                    onSelectTournament={setSelectedTournament}
+                  />
+                </Panel>
+
+                <Panel id="captain-tournament" nav="captain-tournament">
+                  <PanelHeader
+                    before={shouldShowBackButton() && <PanelHeaderBack onClick={goBack} />}
+                  >
+                    {selectedTournament?.name || 'Команда'}
+                  </PanelHeader>
+                  <CaptainTournament 
+                    tournament={selectedTournament}
+                    user={user}
+                    onNavigate={navigateTo}
+                    onSnackbar={showSnackbar}
+                    onBack={goBack}
+                  />
+                </Panel>
+
+                <Panel id="team-roster" nav="team-roster">
+                  <PanelHeader
+                    before={<PanelHeaderBack onClick={goBack} />}
+                  >
+                    Состав команды
+                  </PanelHeader>
+                  <TeamRoster 
+                    tournament={selectedTournament}
+                    user={user}
+                    onSnackbar={showSnackbar}
+                    onAddPlayer={() => navigateTo('main', 'add-player')}
+                  />
+                </Panel>
+
+                <Panel id="add-player" nav="add-player">
+                  <PanelHeader
+                    before={
+                      <div
+                        onClick={goBack}
+                        aria-label="Назад"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '50%',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <Icon28ChevronBack />
+                      </div>
+                    }
+                  >
+                    Добавить игрока
+                  </PanelHeader>
+                  <AddPlayer 
+                    tournament={selectedTournament}
+                    user={user}
+                    onBack={goBack}
+                    onSnackbar={showSnackbar}
+                  />
+                </Panel>
+
+                <Panel id="match-schedule" nav="match-schedule">
+                  <PanelHeader
+                    before={<PanelHeaderBack onClick={goBack} />}
+                  >
+                    Расписание матчей
+                  </PanelHeader>
+                  <MatchSchedule 
+                    tournament={selectedTournament}
+                    user={user}
+                    onSnackbar={showSnackbar}
+                  />
+                </Panel>
+
+                <Panel id="completed-matches" nav="completed-matches">
+                  <PanelHeader
+                    before={<PanelHeaderBack onClick={goBack} />}
+                  >
+                    Завершённые матчи
+                  </PanelHeader>
+                  <CompletedMatches 
+                    tournament={selectedTournament}
+                    user={user}
+                    onSnackbar={showSnackbar}
+                  />
+                </Panel>
+              </View>
+            </SplitCol>
+
+            {isDesktop && userRole !== 'guest' && (
+              <SplitCol width="280px" maxWidth="280px" fixed>
+                <Div style={{ padding: '20px 16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+                    <Avatar size={48} fallbackIcon={<Icon28UserCircleOutline />} />
+                    <div>
+                      <Title level="3" style={{ fontSize: '16px', fontWeight: '600' }}>
+                        {user?.first_name} {user?.last_name}
+                      </Title>
+                      <Text style={{ color: 'var(--vkui--color_text_secondary)' }}>
+                        {userRole === 'superadmin' ? 'Супер Админ' : 
+                         userRole === 'admin' ? 'Администратор' : 
+                         userRole === 'captain' ? 'Капитан' : 'Гость'}
+                      </Text>
+                    </div>
+                  </div>
+
+                  <CardGrid size="s">
+                    {userRole === 'superadmin' && (
+                      <>
+                        <Card>
+                          <NavigationIcon
+                            icon={Icon28CupOutline}
+                            label="Турниры"
+                            onClick={() => navigateTo('main', 'admin-dashboard')}
+                            active={activePanel === 'admin-dashboard'}
+                          />
+                        </Card>
+                        <Card>
+                          <NavigationIcon
+                            icon={Icon28Users3Outline}
+                            label="Админы"
+                            onClick={() => navigateTo('main', 'superadmin')}
+                            active={activePanel === 'superadmin'}
+                          />
+                        </Card>
+                      </>
+                    )}
+
+                    {userRole === 'admin' && (
+                      <Card>
+                        <NavigationIcon
+                          icon={Icon28CupOutline}
+                          label="Мои турниры"
+                          onClick={() => navigateTo('main', 'admin-dashboard')}
+                          active={activePanel === 'admin-dashboard'}
+                        />
+                      </Card>
+                    )}
+
+                    {userRole === 'captain' && (
+                      <Card>
+                        <NavigationIcon
+                          icon={Icon28Users3Outline}
+                          label="Мои команды"
+                          onClick={() => navigateTo('main', 'captain-dashboard')}
+                          active={activePanel === 'captain-dashboard'}
+                        />
+                      </Card>
+                    )}
+                  </CardGrid>
+                </Div>
+              </SplitCol>
+            )}
+          </SplitLayout>
+
+          {snackbar && (
+            <Snackbar
+              layout="vertical"
+              onClose={() => setSnackbar(null)}
+              duration={3000}
+            >
+              {snackbar}
+            </Snackbar>
+          )}
+        </AppRoot>
+      </ConfigProvider>
+    </AdaptivityProvider>
   );
 };
 
 export default App;
+

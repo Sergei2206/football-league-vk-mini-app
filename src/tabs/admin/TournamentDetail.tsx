@@ -1,110 +1,45 @@
 // src/tabs/admin/TournamentDetail.tsx
-import React, { useState } from 'react';
-import { Div, Group, Button } from '@vkontakte/vkui';
-import TournamentOverview from './TournamentOverview';
-import TournamentTeams from './TournamentTeams';
-import TournamentApprovals from './TournamentApprovals';
-import TournamentSettings from './TournamentSettings';
-import TournamentSchedule from './TournamentSchedule';
-import TournamentTable from './TournamentTable';
-import MatchProtocols from './MatchProtocols';
-import { Tournament } from '../../types';
+import React from 'react';
+import { Group, Div, Button, Text } from '@vkontakte/vkui';
 
 interface TournamentDetailProps {
-  tournament: Tournament;
-  user: any;
-  onBack: () => void;
+  tournament: any;
+  onNavigate: (view: string, panel: string) => void;
   onSnackbar: (message: string) => void;
+  onBack: () => void;
 }
 
-const TournamentDetail = ({ tournament, user, onBack, onSnackbar }: TournamentDetailProps) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'teams' | 'approvals' | 'settings' | 'schedule' | 'table' | 'protocols'>('overview');
-
+const TournamentDetail = ({ tournament, onNavigate, onSnackbar, onBack }: TournamentDetailProps) => {
   return (
-    <Div>
-      <Group>
-        <div style={{ padding: '16px', fontSize: '18px', fontWeight: 'bold' }}>
-          {tournament.name}
-          {tournament.season && ` • Сезон ${tournament.season}`}
-        </div>
+    <Div style={{ padding: '16px' }}>
+      <Group header="Детали турнира">
+        <Div>
+          <Text style={{ marginBottom: '8px' }}>
+            <strong>Название:</strong> {tournament?.name || 'Не указано'}
+          </Text>
+          <Text style={{ marginBottom: '8px' }}>
+            <strong>Тип:</strong> {tournament?.type === 'league' ? 'Чемпионат' : 'Кубок'}
+          </Text>
+          <Text style={{ marginBottom: '8px' }}>
+            <strong>Сезон:</strong> {tournament?.season || 'Не указан'}
+          </Text>
+          <Text>
+            <strong>Формат:</strong> {tournament?.format || 'Не указан'}
+          </Text>
+        </Div>
       </Group>
-
-      <Div style={{ padding: '0 16px 16px' }}>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          <Button size="s" mode={activeTab === 'overview' ? 'primary' : 'secondary'} onClick={() => setActiveTab('overview')}>
-            Обзор
-          </Button>
-          <Button size="s" mode={activeTab === 'teams' ? 'primary' : 'secondary'} onClick={() => setActiveTab('teams')}>
-            Команды
-          </Button>
-          <Button size="s" mode={activeTab === 'table' ? 'primary' : 'secondary'} onClick={() => setActiveTab('table')}>
-            Таблица
-          </Button>
-          <Button size="s" mode={activeTab === 'protocols' ? 'primary' : 'secondary'} onClick={() => setActiveTab('protocols')}>
-            Протоколы
-          </Button>
-          <Button size="s" mode={activeTab === 'approvals' ? 'primary' : 'secondary'} onClick={() => setActiveTab('approvals')}>
-            Согласование
-          </Button>
-          <Button size="s" mode={activeTab === 'settings' ? 'primary' : 'secondary'} onClick={() => setActiveTab('settings')}>
-            Настройки
-          </Button>
-          <Button size="s" mode={activeTab === 'schedule' ? 'primary' : 'secondary'} onClick={() => setActiveTab('schedule')}>
-            Расписание
-          </Button>
-        </div>
-      </Div>
-
-      <Div>
-        {activeTab === 'overview' && (
-          <TournamentOverview 
-            tournament={tournament} 
-            user={user} 
-            onSnackbar={onSnackbar} 
-          />
-        )}
-        {activeTab === 'teams' && (
-          <TournamentTeams 
-            tournament={tournament} 
-            user={user} 
-            onSnackbar={onSnackbar} 
-          />
-        )}
-        {activeTab === 'table' && (
-          <TournamentTable 
-            tournament={tournament} 
-            onSnackbar={onSnackbar} 
-          />
-        )}
-        {activeTab === 'protocols' && (
-          <MatchProtocols 
-            tournament={tournament} 
-            onSnackbar={onSnackbar} 
-          />
-        )}
-        {activeTab === 'approvals' && <TournamentApprovals />}
-        {activeTab === 'settings' && (
-          <TournamentSettings 
-            tournament={tournament} 
-            onSnackbar={onSnackbar} 
-          />
-        )}
-        {activeTab === 'schedule' && (
-          <TournamentSchedule 
-            tournament={tournament} 
-            user={user} 
-            onSnackbar={onSnackbar} 
-          />
-        )}
-      </Div>
-
-      <Div style={{ padding: '16px' }}>
-        <Button size="l" mode="secondary" onClick={onBack}>
-          Назад к списку турниров
-        </Button>
-      </Div>
+      
+      <Button 
+        size="l" 
+        mode="primary" 
+        onClick={() => onNavigate('main', 'admin-dashboard')}
+        style={{ marginTop: '16px', width: '100%' }}
+      >
+        Назад к турнирам
+      </Button>
     </Div>
   );
 };
 
 export default TournamentDetail;
+

@@ -1,4 +1,4 @@
-import { db } from '../firebase';
+import { db } from '../../firebase';
 import { doc, getDoc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 
 const APP_ADMINS_DOC_ID = 'main';

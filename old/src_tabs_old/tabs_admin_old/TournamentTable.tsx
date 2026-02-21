@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Group, Div, Spinner, Card } from '@vkontakte/vkui';
-import { db } from '../../firebase';
+import { db } from '../../../firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { doc, getDoc } from 'firebase/firestore';
 

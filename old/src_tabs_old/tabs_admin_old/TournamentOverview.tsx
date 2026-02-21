@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Group, Cell, Div, Button } from '@vkontakte/vkui';
-import { db } from '../../firebase';
+import { db } from '../../../firebase';
 import { doc, getDoc, updateDoc, addDoc, collection } from 'firebase/firestore';
 
 interface TournamentOverviewProps {

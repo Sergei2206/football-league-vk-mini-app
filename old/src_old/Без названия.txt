@@ -1,0 +1,118 @@
+Ошибка означает, что TypeScript не знает о свойстве `vk` в объекте `window`.
+
+---
+
+## 🔍 Проблема
+
+TypeScript не распознаёт глобальное свойство `window.vk`, которое добавляет VK при запуске Mini App.
+
+---
+
+## ✅ Решение
+
+Нужно **расширить тип `Window`** или использовать **безопасный доступ** к свойству.
+
+### Вариант 1: Безопасный доступ (рекомендуется)
+
+```tsx
+// src/vk-bridge.ts
+import bridge from '@vkontakte/vk-bridge';
+
+export const initVKBridge = async () => {
+  try {
+    // Проверяем наличие vk через безопасный доступ
+    if (typeof window !== 'undefined' && (window as any).vk) {
+      await bridge.send('VKWebAppInit');
+      return true;
+    }
+    console.log('Запуск в режиме разработки (вне VK)');
+    return false;
+  } catch (error) {
+    console.error('Ошибка инициализации VK Bridge:', error);
+    return false;
+  }
+};
+
+export const getUserInfo = async () => {
+  try {
+    const isVK = await initVKBridge();
+    if (isVK) {
+      const userData = await bridge.send('VKWebAppGetUserInfo');
+      return userData;
+    }
+    return {
+      id: 91747933,
+      first_name: 'Сергей',
+      last_name: 'Застрогин',
+      photo_50: 'https://vk.com/images/question_50.png'
+    };
+  } catch (error) {
+    console.error('Ошибка получения данных пользователя:', error);
+    return null;
+  }
+};
+```
+
+### Вариант 2: Расширить глобальный тип (альтернатива)
+
+Создай файл `src/types/global.d.ts`:
+
+```ts
+// src/types/global.d.ts
+interface Window {
+  vk?: any;
+}
+```
+
+И используй обычную проверку:
+```tsx
+if (typeof window !== 'undefined' && window.vk) {
+```
+
+---
+
+## 📄 Рекомендуемый финальный файл
+
+Используй **Вариант 1** — он проще и не требует дополнительных файлов:
+
+```tsx
+// src/vk-bridge.ts
+import bridge from '@vkontakte/vk-bridge';
+
+export const initVKBridge = async () => {
+  try {
+    if (typeof window !== 'undefined' && (window as any).vk) {
+      await bridge.send('VKWebAppInit');
+      return true;
+    }
+    console.log('Запуск в режиме разработки (вне VK)');
+    return false;
+  } catch (error) {
+    console.error('Ошибка инициализации VK Bridge:', error);
+    return false;
+  }
+};
+
+export const getUserInfo = async () => {
+  try {
+    const isVK = await initVKBridge();
+    if (isVK) {
+      const userData = await bridge.send('VKWebAppGetUserInfo');
+      return userData;
+    }
+    return {
+      id: 91747933,
+      first_name: 'Сергей',
+      last_name: 'Застрогин',
+      photo_50: 'https://vk.com/images/question_50.png'
+    };
+  } catch (error) {
+    console.error('Ошибка получения данных пользователя:', error);
+    return null;
+  }
+};
+```
+
+---
+
+✅ Теперь ошибка `TS2339` исчезнет!

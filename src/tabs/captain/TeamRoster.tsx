@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Group, Div, FormLayout, Input, Button, ModalRoot, ModalPage, ModalPageHeader, Spinner } from '@vkontakte/vkui';
+// src/tabs/captain/TeamRoster.tsx
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Group, Div, Button, PopoutWrapper, List, Cell, Spinner } from '@vkontakte/vkui';
 import { db } from '../../firebase';
 import { collection, getDocs, query, where, doc, updateDoc } from 'firebase/firestore';
 
@@ -21,25 +22,18 @@ interface TeamRosterProps {
 const TeamRoster = ({ tournament, user, onSnackbar, onAddPlayer }: TeamRosterProps) => {
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isAddingPlayer, setIsAddingPlayer] = useState(false);
-  const [newPlayer, setNewPlayer] = useState({ 
-    number: '', 
-    name: '', 
-    vkId: '', 
-    position: 'forward' as const 
-  });
   const [isSeasonStarted, setIsSeasonStarted] = useState(false);
   const [selectedLogo, setSelectedLogo] = useState('');
   const [availableLogos, setAvailableLogos] = useState<string[]>([]);
+  const [showLogoMenu, setShowLogoMenu] = useState(false);
+  const logoButtonRef = useRef<HTMLDivElement>(null);
 
-  // Загрузка состава команды
-  const loadTeamRoster = async () => {
+  const loadTeamRoster = useCallback(async () => {
     if (!user?.id || !tournament?.id) return;
     
     try {
       setLoading(true);
       
-      // Находим команду капитана
       const teamsQuery = query(
         collection(db, 'teams'),
         where('tournamentId', '==', tournament.id),
@@ -60,20 +54,16 @@ const TeamRoster = ({ tournament, user, onSnackbar, onAddPlayer }: TeamRosterPro
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id, tournament?.id, onSnackbar]);
 
-  // Загрузка списка доступных логотипов (до 30 файлов)
-  const loadAvailableLogos = async () => {
+  const loadAvailableLogos = useCallback(async () => {
     try {
-      // Генерируем массив от logo1.png до logo30.png
       const logoNames = Array.from({ length: 30 }, (_, i) => `logo${i + 1}.png`);
       
       const existingLogos = [];
       
-      // Проверяем каждый файл
       for (const logo of logoNames) {
         try {
-          // Используем относительный путь без слэша в начале
           const response = await fetch(`team-logos/${logo}`, { method: 'HEAD' });
           if (response.ok) {
             existingLogos.push(logo);
@@ -88,61 +78,12 @@ const TeamRoster = ({ tournament, user, onSnackbar, onAddPlayer }: TeamRosterPro
       console.error('Ошибка загрузки логотипов:', err);
       setAvailableLogos([]);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadTeamRoster();
     loadAvailableLogos();
-  }, [tournament?.id, user?.id]);
-
-  const handleAddPlayer = async () => {
-    if (!newPlayer.number || !newPlayer.name) {
-      onSnackbar('Заполните все обязательные поля');
-      return;
-    }
-    
-    // Создаем объект игрока БЕЗ undefined полей
-    const playerData: any = {
-      id: `player_${Date.now()}`,
-      number: parseInt(newPlayer.number) || 1,
-      name: newPlayer.name.trim(),
-      position: newPlayer.position
-    };
-    
-    // Добавляем vkId только если он есть
-    if (newPlayer.vkId && newPlayer.vkId.trim() !== '') {
-      const vkIdNum = parseInt(newPlayer.vkId);
-      if (!isNaN(vkIdNum)) {
-        playerData.vkId = vkIdNum;
-      }
-    }
-    
-    try {
-      // Находим команду капитана
-      const teamsQuery = query(
-        collection(db, 'teams'),
-        where('tournamentId', '==', tournament.id),
-        where('captainVkId', '==', user.id)
-      );
-      
-      const teamsSnapshot = await getDocs(teamsQuery);
-      
-      if (!teamsSnapshot.empty) {
-        const teamRef = doc(db, 'teams', teamsSnapshot.docs[0].id);
-        await updateDoc(teamRef, {
-          players: [...(teamsSnapshot.docs[0].data().players || []), playerData]
-        });
-        
-        setPlayers(prev => [...prev, playerData as Player]);
-        setNewPlayer({ number: '', name: '', vkId: '', position: 'forward' });
-        setIsAddingPlayer(false);
-        onSnackbar('Игрок добавлен!');
-      }
-    } catch (err: any) {
-      console.error('Ошибка добавления игрока:', err);
-      onSnackbar(`Ошибка: ${err.message || 'Не удалось добавить игрока'}`);
-    }
-  };
+  }, [loadTeamRoster, loadAvailableLogos]);
 
   const handleDeletePlayer = async (playerToDelete: Player) => {
     if (isSeasonStarted) {
@@ -151,7 +92,6 @@ const TeamRoster = ({ tournament, user, onSnackbar, onAddPlayer }: TeamRosterPro
     }
     
     try {
-      // Находим команду капитана
       const teamsQuery = query(
         collection(db, 'teams'),
         where('tournamentId', '==', tournament.id),
@@ -179,7 +119,6 @@ const TeamRoster = ({ tournament, user, onSnackbar, onAddPlayer }: TeamRosterPro
 
   const handleLogoSelect = async (logoFilename: string) => {
     try {
-      // Находим команду капитана
       const teamsQuery = query(
         collection(db, 'teams'),
         where('tournamentId', '==', tournament.id),
@@ -197,6 +136,8 @@ const TeamRoster = ({ tournament, user, onSnackbar, onAddPlayer }: TeamRosterPro
     } catch (err: any) {
       console.error('Ошибка обновления логотипа:', err);
       onSnackbar('Не удалось обновить логотип');
+    } finally {
+      setShowLogoMenu(false);
     }
   };
 
@@ -215,6 +156,13 @@ const TeamRoster = ({ tournament, user, onSnackbar, onAddPlayer }: TeamRosterPro
     return filename.replace('.png', '').replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
 
+  const getCurrentLogoUrl = () => {
+    if (selectedLogo) {
+      return `team-logos/${selectedLogo}`;
+    }
+    return null;
+  };
+
   if (loading) {
     return (
       <Div style={{ textAlign: 'center', padding: '20px 0' }}>
@@ -227,58 +175,101 @@ const TeamRoster = ({ tournament, user, onSnackbar, onAddPlayer }: TeamRosterPro
   return (
     <Group header="Состав команды">
       <Div style={{ padding: '16px' }}>
-        {/* Выбор логотипа */}
         <div style={{ marginBottom: '16px' }}>
           <div style={{ marginBottom: '8px', fontWeight: '500' }}>Логотип команды</div>
           
-          {availableLogos.length > 0 ? (
-            <>
-              <div style={{ fontSize: '12px', color: '#666', marginBottom: '12px' }}>
-                Выберите логотип из доступной коллекции
+          <div 
+            ref={logoButtonRef}
+            onClick={() => setShowLogoMenu(true)}
+            style={{
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              padding: '12px',
+              backgroundColor: 'var(--vkui--color_background_secondary)',
+              borderRadius: '8px',
+              border: '1px solid var(--vkui--color_field_border_alpha)'
+            }}
+          >
+            {getCurrentLogoUrl() ? (
+              <img 
+                src={getCurrentLogoUrl()!} 
+                alt="Текущий логотип"
+                style={{ 
+                  width: '40px', 
+                  height: '40px', 
+                  objectFit: 'contain'
+                }}
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                }}
+              />
+            ) : (
+              <div style={{
+                width: '40px',
+                height: '40px',
+                backgroundColor: '#f0f0f0',
+                borderRadius: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#999',
+                fontSize: '18px'
+              }}>
+                ⚽
               </div>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(60px, 1fr))', gap: '8px' }}>
-                {availableLogos.map(filename => (
-                  <div
-                    key={filename}
-                    onClick={() => handleLogoSelect(filename)}
-                    style={{
-                      cursor: 'pointer',
-                      opacity: selectedLogo === filename ? 1 : 0.6,
-                      border: selectedLogo === filename ? '2px solid var(--vkui--color_accent)' : '1px solid #e1e3e6',
-                      borderRadius: '6px',
-                      padding: '4px'
-                    }}
-                  >
-                    <img 
-                      // ИСПОЛЬЗУЕМ ОТНОСИТЕЛЬНЫЙ ПУТЬ БЕЗ СЛЕША В НАЧАЛЕ
-                      src={`team-logos/${filename}`} 
-                      alt={getLogoDisplayName(filename)}
-                      style={{ 
-                        width: '50px', 
-                        height: '50px', 
-                        objectFit: 'contain'
-                      }}
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                      }}
-                    />
-                    <div style={{ fontSize: '10px', textAlign: 'center', marginTop: '2px' }}>
-                      {getLogoDisplayName(filename)}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          ) : (
-            <div style={{ fontSize: '12px', color: '#999', fontStyle: 'italic' }}>
-              Нет доступных логотипов. Администратор может добавить их позже.
+            )}
+            <div>
+              {selectedLogo ? getLogoDisplayName(selectedLogo) : 'Выберите логотип'}
             </div>
+          </div>
+          
+          {showLogoMenu && (
+            <PopoutWrapper
+              onClick={() => setShowLogoMenu(false)}
+              closing={!showLogoMenu}
+            >
+              <List style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                {availableLogos.length > 0 ? (
+                  availableLogos.map(filename => (
+                    <Cell
+                      key={filename}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleLogoSelect(filename);
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px'
+                      }}
+                    >
+                      <img 
+                        src={`team-logos/${filename}`} 
+                        alt={getLogoDisplayName(filename)}
+                        style={{ 
+                          width: '32px', 
+                          height: '32px', 
+                          objectFit: 'contain'
+                        }}
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                        }}
+                      />
+                      {getLogoDisplayName(filename)}
+                    </Cell>
+                  ))
+                ) : (
+                  <Cell>Нет доступных логотипов</Cell>
+                )}
+              </List>
+            </PopoutWrapper>
           )}
         </div>
 
-        {/* Список игроков */}
         {players.length === 0 ? (
           <Div>Состав пуст</Div>
         ) : (
@@ -314,7 +305,6 @@ const TeamRoster = ({ tournament, user, onSnackbar, onAddPlayer }: TeamRosterPro
           </div>
         )}
 
-        {/* Кнопка добавления игрока */}
         {!isSeasonStarted && (
           <Button
             size="l"
@@ -331,3 +321,4 @@ const TeamRoster = ({ tournament, user, onSnackbar, onAddPlayer }: TeamRosterPro
 };
 
 export default TeamRoster;
+

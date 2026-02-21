@@ -18,7 +18,7 @@ import CupBracket from './CupBracket';
 import TopScorersTab from './TopScorersTab';
 import TopGoalkeepersTab from './TopGoalkeepersTab';
 
-import { db } from '../firebase';
+import { db } from '../../firebase';
 import { collection, query, getDocs } from 'firebase/firestore';
 
 interface Tournament {
